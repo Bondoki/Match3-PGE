@@ -181,7 +181,7 @@ public:
       std::vector<olc::vi2d> pos;
       
       for(int i=0; i < 39; i++)
-        pos.push_back( olc::vi2d({i*52,   (3*j)*52+104}));
+        pos.push_back( olc::vi2d({i*52,   (3*j)*52+0}));
       
       
       sprite.AddState("rotating", 0.02f, olc::AnimatedSprite::PLAY_MODE::LOOP, pos);
@@ -238,6 +238,8 @@ public:
       };
       
       bool bBombToRemove = false;
+      
+      bool bRainbowToRemove = false;
       
      
       // Gameplay
@@ -411,12 +413,16 @@ public:
                 {
                   bool bPlaceBomb = false;
                   
+                  bool bPlaceRainbow = false;
+                  
                   // Check Horizontally
                   int nChain = 1;
                   while (((nChain + x) < 8) && (m_GemsPlayfield[x][y].color == m_GemsPlayfield[x + nChain][y].color) ) nChain++;
                   if (nChain >= 3)
                   {
-                    if (nChain >= 4) bPlaceBomb = true;
+                    if (nChain == 4) bPlaceBomb = true;
+                    
+                    if (nChain >= 5) bPlaceRainbow = true;
                     
                     while (nChain > 0)
                     {
@@ -439,6 +445,15 @@ public:
                         bBombToRemove = true;
                       }
                       
+                      if (m_GemsPlayfield[x + nChain - 1][y].type == sGem::GEMTYPE::RAINBOW)
+                      {
+                                     
+                        m_GemsPlayfield[x + nChain - 1][y].bRemove = true;
+                        
+                        bRainbowToRemove = true;
+                      }
+                      
+                      
                       nChain--;
                       bSwapFail = false;
                       bGemsToRemove = true;
@@ -453,7 +468,10 @@ public:
                   
                   if (nChain >= 3)
                   {
-                    if (nChain >= 4) bPlaceBomb = true;
+                    if (nChain == 4) bPlaceBomb = true;
+                    
+                    if (nChain >= 5) bPlaceRainbow = true;
+                    
                     
                     while (nChain > 0)
                     {
@@ -477,6 +495,13 @@ public:
                         bBombToRemove = true;
                       }
                       
+                      if (m_GemsPlayfield[x][y + nChain - 1].type == sGem::GEMTYPE::RAINBOW)
+                      {
+                        m_GemsPlayfield[x][y + nChain - 1].bRemove = true;
+                        
+                        bRainbowToRemove = true;
+                      }
+                      
                       nChain--;
                       bSwapFail = false;
                       bGemsToRemove = true;
@@ -489,7 +514,17 @@ public:
                     m_GemsPlayfield[x][y].bRemove = false;
                     m_GemsPlayfield[x][y].type = sGem::GEMTYPE::BOMB;
                     
-                    m_GemsPlayfield[x][y].sprite.SetState("bomb idle");
+                    m_GemsPlayfield[x][y].sprite.SetState("bomb rotating");
+               
+                  }
+                  
+                  if (bPlaceRainbow)
+                  {
+                    //m_GemsPlayfield[x][y].bBomb = true;
+                    m_GemsPlayfield[x][y].bRemove = false;
+                    m_GemsPlayfield[x][y].type = sGem::GEMTYPE::RAINBOW;
+                    
+                    m_GemsPlayfield[x][y].sprite.SetState("rainbow rotating");
                
                   }
                   
@@ -523,13 +558,39 @@ public:
               
               nNextState = STATE_CHECK_BOMB;
             }
-            else
+            
+            if(bRainbowToRemove == true)
+            {
+              for (int x = 0; x < 8; x++)
+              {
+                for (int y = 0; y < 8; y++)
+                {
+                  if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::RAINBOW && m_GemsPlayfield[x][y].bRemove)
+                  {
+                    for (int k = 0; k < 8; k++)
+                    {
+                      for (int l = 0; l < 8; l++)
+                      {
+                        if(m_GemsPlayfield[x][y].color == m_GemsPlayfield[k][l].color)
+                          m_GemsPlayfield[k][l].bRemove = true;
+                      }
+                    }
+                    
+                    
+                  }
+                }
+              }
+              
+              nNextState = STATE_CHECK_BOMB;
+            }
+           
+            if((bBombToRemove != true) && (bRainbowToRemove != true))
             {
               nNextState = STATE_ERASE;
             }
             
             if (bGemsToRemove)
-              fDelayTime = 0.75f;
+              fDelayTime = 1.75f;
             
           
           
@@ -541,7 +602,7 @@ public:
             bBombToRemove = false;
             
             // bomb exploded and remove vicinity
-            // maybe another bomb will explode
+            // maybe another bomb will explode or a rainbow will be triggered
             
             for (int x = 0; x < 8; x++)
             {
@@ -556,20 +617,36 @@ public:
                       int m = std::min(std::max(i + x, 0), 7);
                       int n = std::min(std::max(j + y, 0), 7);
                       m_GemsPlayfield[m][n].bRemove = true;
+                      
+                      if (m_GemsPlayfield[m][n].type == sGem::GEMTYPE::RAINBOW && m_GemsPlayfield[m][n].bRemove)
+                      {
+                        for (int k = 0; k < 8; k++)
+                        {
+                          for (int l = 0; l < 8; l++)
+                          {
+                            if(m_GemsPlayfield[m][n].color == m_GemsPlayfield[k][l].color)
+                              m_GemsPlayfield[k][l].bRemove = true;
+                          }
+                        }
+                        
+                        m_GemsPlayfield[m][n].type = sGem::GEMTYPE::GEM;
+                      }
+                      
                     }
                   }
-                  
+                  m_GemsPlayfield[x][y].type = sGem::GEMTYPE::GEM;
                   bBombToRemove = true;
                 }
               }
             }
             
             //maybe this triggers another bomb
-//             if(bBombToRemove)
-//               nNextState = STATE_CHECK_BOMB;
-//             else
+             if(bBombToRemove)
+               nNextState = STATE_CHECK_BOMB;
+             else
               nNextState = STATE_ERASE;
             
+             fDelayTime = 1.75f;
             break;
           
           case STATE_ERASE:
@@ -627,13 +704,13 @@ public:
               if (!m_GemsPlayfield[x][0].bExist)
               {
                 
-                m_GemsPlayfield[x][0].color = rand() % 7 + 1;
+                m_GemsPlayfield[x][0].color = rand() % 5 + 1;
                 m_GemsPlayfield[x][0].animation_mode = 1;
                 m_GemsPlayfield[x][0].sprite = m_GemSprite[m_GemsPlayfield[x][0].color-1];
                 m_GemsPlayfield[x][0].bExist = true;
                 m_GemsPlayfield[x][0].bRemove = false;
                 //m_GemsPlayfield[x][0].bBomb = rand() % 64 + 1 <= 1 ? true : false;
-                m_GemsPlayfield[x][0].type = rand() % 64 + 1 > 16 ? sGem::GEMTYPE::GEM : rand() % 64 + 1 > 32 ? sGem::GEMTYPE::BOMB : sGem::GEMTYPE::RAINBOW;
+                m_GemsPlayfield[x][0].type = rand() % 64 + 1 > 1 ? sGem::GEMTYPE::GEM : rand() % 64 + 1 > 16 ? sGem::GEMTYPE::BOMB : sGem::GEMTYPE::RAINBOW;
                 
 //                 if (m_GemsPlayfield[x][0].bBomb)
 //                   m_GemsPlayfield[x][0].sprite.SetState("bomb idle");
