@@ -14,12 +14,19 @@ public:
   
   struct sGem
   {
-    uint8_t type; // 0 NONE; 1 WHITE; 2 BLUE; 3 RED; 4 PURPLE; 5 ORANGE; 6 GREEN
+    uint8_t color; // 0 NONE; 1 BLUE; 2 GREEN; 3 ORANGE; 4 PURPLE; 5 RED; WHITE; YELLOW
     uint8_t animation_mode; // 0 NONE; 1 ROTATING; 2 TILTING
     bool bExist;
     bool bRemove;
-    bool bBomb;
+    //bool bBomb;
     olc::AnimatedSprite sprite; 
+    
+    enum GEMTYPE
+    {
+      GEM, 
+      BOMB,
+      RAINBOW,
+    } type;
   };
   
   enum STATES
@@ -66,7 +73,7 @@ public:
     float y; 
     float vx; 
     float vy;
-    uint8_t type;
+    uint8_t color;
     olc::AnimatedSprite sprite; 
   };
   
@@ -191,12 +198,13 @@ public:
     {
       for (int y = 0; y < 8; y++)
       {
-        m_GemsPlayfield[x][y].type = rand() % 7 + 1;
+        m_GemsPlayfield[x][y].color = rand() % 7 + 1;
         m_GemsPlayfield[x][y].animation_mode = 0;
-        m_GemsPlayfield[x][y].sprite = m_GemSprite[m_GemsPlayfield[x][y].type-1];
+        m_GemsPlayfield[x][y].sprite = m_GemSprite[m_GemsPlayfield[x][y].color-1];
         m_GemsPlayfield[x][y].bExist = false;
         m_GemsPlayfield[x][y].bRemove = false;
-        m_GemsPlayfield[x][y].bBomb = false;
+        //m_GemsPlayfield[x][y].bBomb = false;
+        m_GemsPlayfield[x][y].type = sGem::GEMTYPE::GEM;
       }
     }
     
@@ -212,7 +220,7 @@ public:
     else
     {
       
-      auto boom = [&](int x, int y, int size, uint8_t type)
+      auto boom = [&](int x, int y, int size, uint8_t color)
       {
         auto random_float = [&](float min, float max)
         {
@@ -223,7 +231,7 @@ public:
         for (int i = 0; i < size; i++)
         {
           float a = random_float(0, 2.0f * 3.14159f);
-          sFragment f = { (float)x, (float)y, cosf(a) * random_float(100.0f, 300.0f), sinf(a) * random_float(100.0f, 300.0f), type, m_FragmentSprite[type-1] };
+          sFragment f = { (float)x, (float)y, cosf(a) * random_float(100.0f, 300.0f), sinf(a) * random_float(100.0f, 300.0f), color, m_FragmentSprite[color-1] };
           fragments.push_back(f);
         }
         
@@ -257,10 +265,12 @@ public:
                   //if(m_GemsPlayfield[vCell.x][vCell.y].animation_mode==0)
                   //  m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("idle");
                   
-                  if (m_GemsPlayfield[vCell.x][vCell.y].bBomb)
+                  if (m_GemsPlayfield[vCell.x][vCell.y].type ==  sGem::GEMTYPE::GEM)
+                     m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("gem rotating");
+                  else if (m_GemsPlayfield[vCell.x][vCell.y].type ==  sGem::GEMTYPE::BOMB)
                     m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("bomb rotating");
-                  else
-                    m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("gem rotating");
+                  else if (m_GemsPlayfield[vCell.x][vCell.y].type ==  sGem::GEMTYPE::RAINBOW)
+                    m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("rainbow rotating");
                   
 //                   if(m_GemsPlayfield[vCell.x][vCell.y].animation_mode==1)
 //                     m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("rotating");
@@ -290,11 +300,12 @@ public:
                     m_GemsPlayfield[nCursor.x][nCursor.y].animation_mode = 0;//(m_GemsPlayfield[vCell.x][vCell.y].animation_mode+1) %3;
                     //m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("idle");
                     
-                    if (m_GemsPlayfield[nCursor.x][nCursor.y].bBomb)
-                      m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("bomb idle");
-                    else
+                    if (m_GemsPlayfield[nCursor.x][nCursor.y].type ==  sGem::GEMTYPE::GEM)
                       m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("gem idle");
-                    
+                    else if (m_GemsPlayfield[nCursor.x][nCursor.y].type ==  sGem::GEMTYPE::BOMB)
+                      m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("bomb idle");
+                    else if (m_GemsPlayfield[nCursor.x][nCursor.y].type ==  sGem::GEMTYPE::RAINBOW)
+                      m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("rainbow idle");
                     
                   
                     bIsfirstClickMouse = true;
@@ -304,10 +315,12 @@ public:
                   { 
                     m_GemsPlayfield[nCursor.x][nCursor.y].animation_mode = 0;//(m_GemsPlayfield[vCell.x][vCell.y].animation_mode+1) %3;
                     //m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("idle");
-                    if (m_GemsPlayfield[nCursor.x][nCursor.y].bBomb)
-                      m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("bomb idle");
-                    else
+                    if (m_GemsPlayfield[nCursor.x][nCursor.y].type ==  sGem::GEMTYPE::GEM)
                       m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("gem idle");
+                    else if (m_GemsPlayfield[nCursor.x][nCursor.y].type ==  sGem::GEMTYPE::BOMB)
+                      m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("bomb idle");
+                    else if (m_GemsPlayfield[nCursor.x][nCursor.y].type ==  sGem::GEMTYPE::RAINBOW)
+                      m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("rainbow idle");
                     
                   
                     // newly selected 
@@ -321,11 +334,14 @@ public:
                   //if(m_GemsPlayfield[vCell.x][vCell.y].animation_mode==0)
                   //  m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("idle");
                   
-                    if (m_GemsPlayfield[vCell.x][vCell.y].bBomb)
-                    m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("bomb rotating");
-                  else
-                    m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("gem rotating");
-                  
+                    if (m_GemsPlayfield[vCell.x][vCell.y].type ==  sGem::GEMTYPE::GEM)
+                      m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("gem rotating");
+                    else if (m_GemsPlayfield[vCell.x][vCell.y].type ==  sGem::GEMTYPE::BOMB)
+                      m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("bomb rotating");
+                    else if (m_GemsPlayfield[vCell.x][vCell.y].type ==  sGem::GEMTYPE::RAINBOW)
+                      m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("rainbow rotating");
+                    
+                    //               
                     
                   //if(m_GemsPlayfield[vCell.x][vCell.y].animation_mode==1)
                     //m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("rotating");
@@ -397,7 +413,7 @@ public:
                   
                   // Check Horizontally
                   int nChain = 1;
-                  while (((nChain + x) < 8) && (m_GemsPlayfield[x][y].type == m_GemsPlayfield[x + nChain][y].type) ) nChain++;
+                  while (((nChain + x) < 8) && (m_GemsPlayfield[x][y].color == m_GemsPlayfield[x + nChain][y].color) ) nChain++;
                   if (nChain >= 3)
                   {
                     if (nChain >= 4) bPlaceBomb = true;
@@ -406,7 +422,7 @@ public:
                     {
                       m_GemsPlayfield[x + nChain - 1][y].bRemove = true;
                       
-                      if (m_GemsPlayfield[x + nChain - 1][y].bBomb)
+                      if (m_GemsPlayfield[x + nChain - 1][y].type == sGem::GEMTYPE::BOMB)
                       {
 //                         for (int i = -1; i < 2; i++)
 //                         {
@@ -432,8 +448,8 @@ public:
                   
                   // Check Vertically
                   nChain = 1;
-                  //while ( ((nChain + y) < 8) && (m_GemsPlayfield[x][y].type == m_GemsPlayfield[x][y + nChain].type) && (!m_GemsPlayfield[x][y+ nChain].bRemove) ) nChain++;
-                  while ( ((nChain + y) < 8) && (m_GemsPlayfield[x][y].type == m_GemsPlayfield[x][y + nChain].type)  ) nChain++;
+                  //while ( ((nChain + y) < 8) && (m_GemsPlayfield[x][y].color == m_GemsPlayfield[x][y + nChain].color) && (!m_GemsPlayfield[x][y+ nChain].bRemove) ) nChain++;
+                  while ( ((nChain + y) < 8) && (m_GemsPlayfield[x][y].color == m_GemsPlayfield[x][y + nChain].color)  ) nChain++;
                   
                   if (nChain >= 3)
                   {
@@ -444,7 +460,7 @@ public:
                       m_GemsPlayfield[x][y + nChain - 1].bRemove = true;
                       
                       
-                      if (m_GemsPlayfield[x][y + nChain - 1].bBomb)
+                      if (m_GemsPlayfield[x][y + nChain - 1].type == sGem::GEMTYPE::BOMB)
                       {
 //                         for (int i = -1; i < 2; i++)
 //                         {
@@ -469,10 +485,11 @@ public:
                   
                   if (bPlaceBomb)
                   {
-                    m_GemsPlayfield[x][y].bBomb = true;
+                    //m_GemsPlayfield[x][y].bBomb = true;
                     m_GemsPlayfield[x][y].bRemove = false;
+                    m_GemsPlayfield[x][y].type = sGem::GEMTYPE::BOMB;
                     
-                  m_GemsPlayfield[x][y].sprite.SetState("bomb idle");
+                    m_GemsPlayfield[x][y].sprite.SetState("bomb idle");
                
                   }
                   
@@ -489,7 +506,7 @@ public:
               {
                 for (int y = 0; y < 8; y++)
                 {
-                  if (m_GemsPlayfield[x][y].bBomb && m_GemsPlayfield[x][y].bRemove)
+                  if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::BOMB && m_GemsPlayfield[x][y].bRemove)
                   {
                     for (int i = -1; i < 2; i++)
                     {
@@ -530,7 +547,7 @@ public:
             {
               for (int y = 0; y < 8; y++)
               {
-                if (m_GemsPlayfield[x][y].bBomb && m_GemsPlayfield[x][y].bRemove)
+                if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::BOMB && m_GemsPlayfield[x][y].bRemove)
                 {
                   for (int i = -1; i < 2; i++)
                   {
@@ -574,8 +591,8 @@ public:
                   if (m_GemsPlayfield[x][y].bRemove)
                   {
                     m_GemsPlayfield[x][y].bExist = false;
-                    m_GemsPlayfield[x][y].bBomb = false;
-                    boom(x * 52 + 26, y * 52 + 26, 15, m_GemsPlayfield[x][y].type);
+                    m_GemsPlayfield[x][y].type == sGem::GEMTYPE::GEM;
+                    boom(x * 52 + 26, y * 52 + 26, 15, m_GemsPlayfield[x][y].color);
                     nTotalGems--;
                   }
                 }
@@ -610,18 +627,27 @@ public:
               if (!m_GemsPlayfield[x][0].bExist)
               {
                 
-                m_GemsPlayfield[x][0].type = rand() % 7 + 1;
+                m_GemsPlayfield[x][0].color = rand() % 7 + 1;
                 m_GemsPlayfield[x][0].animation_mode = 1;
-                m_GemsPlayfield[x][0].sprite = m_GemSprite[m_GemsPlayfield[x][0].type-1];
+                m_GemsPlayfield[x][0].sprite = m_GemSprite[m_GemsPlayfield[x][0].color-1];
                 m_GemsPlayfield[x][0].bExist = true;
                 m_GemsPlayfield[x][0].bRemove = false;
-                m_GemsPlayfield[x][0].bBomb = rand() % 64 + 1 <= 1 ? true : false;
+                //m_GemsPlayfield[x][0].bBomb = rand() % 64 + 1 <= 1 ? true : false;
+                m_GemsPlayfield[x][0].type = rand() % 64 + 1 > 16 ? sGem::GEMTYPE::GEM : rand() % 64 + 1 > 32 ? sGem::GEMTYPE::BOMB : sGem::GEMTYPE::RAINBOW;
                 
-                if (m_GemsPlayfield[x][0].bBomb)
-                  m_GemsPlayfield[x][0].sprite.SetState("bomb idle");
-                else
+//                 if (m_GemsPlayfield[x][0].bBomb)
+//                   m_GemsPlayfield[x][0].sprite.SetState("bomb idle");
+//                 else
+//                   m_GemsPlayfield[x][0].sprite.SetState("gem idle");
+//                 
+                if (m_GemsPlayfield[x][0].type ==  sGem::GEMTYPE::GEM)
                   m_GemsPlayfield[x][0].sprite.SetState("gem idle");
-                    
+                else if (m_GemsPlayfield[x][0].type ==  sGem::GEMTYPE::BOMB)
+                  m_GemsPlayfield[x][0].sprite.SetState("bomb idle");
+                else if (m_GemsPlayfield[x][0].type ==  sGem::GEMTYPE::RAINBOW)
+                  m_GemsPlayfield[x][0].sprite.SetState("rainbow idle");
+                
+                
                 nTotalGems++;
               }
             }
@@ -655,24 +681,24 @@ public:
       {
         if (m_GemsPlayfield[x][y].bExist)
         {  //if(m_GemsPlayfield[x][y].bBomb == true)
-            //  m_BombSprite[m_GemsPlayfield[x][y].type-1].Draw(fElapsedTime, {x*52.0f, y*52.0f}, olc::Sprite::Flip::NONE, m_GemsPlayfield[x][y].bRemove ? olc::VERY_DARK_GREY : olc::WHITE);
+            //  m_BombSprite[m_GemsPlayfield[x][y].color-1].Draw(fElapsedTime, {x*52.0f, y*52.0f}, olc::Sprite::Flip::NONE, m_GemsPlayfield[x][y].bRemove ? olc::VERY_DARK_GREY : olc::WHITE);
             //else
               m_GemsPlayfield[x][y].sprite.Draw(fElapsedTime, {x*52.0f, y*52.0f}, olc::Sprite::Flip::NONE, m_GemsPlayfield[x][y].bRemove ? olc::DARK_GREY : olc::WHITE); // draws the sprite at location x, y and animates it
         }
         /*if(m_GemsPlayfield[x][y].animation_mode == 0)
         {
-          m_GemSprite[m_GemsPlayfield[x][y].type-1].SetState("idle");
-          m_GemSprite[m_GemsPlayfield[x][y].type-1].Draw(fElapsedTime, {x*52.0f, y*52.0f}); // draws the sprite at location x:20, y:20 and animates it
+          m_GemSprite[m_GemsPlayfield[x][y].color-1].SetState("idle");
+          m_GemSprite[m_GemsPlayfield[x][y].color-1].Draw(fElapsedTime, {x*52.0f, y*52.0f}); // draws the sprite at location x:20, y:20 and animates it
         }
         if(m_GemsPlayfield[x][y].animation_mode == 1)
         {
-          m_GemSprite[m_GemsPlayfield[x][y].type-1].SetState("rotating");
-          m_GemSprite[m_GemsPlayfield[x][y].type-1].Draw(fElapsedTime, {x*52.0f, y*52.0f}); // draws the sprite at location x:20, y:20 and animates it
+          m_GemSprite[m_GemsPlayfield[x][y].color-1].SetState("rotating");
+          m_GemSprite[m_GemsPlayfield[x][y].color-1].Draw(fElapsedTime, {x*52.0f, y*52.0f}); // draws the sprite at location x:20, y:20 and animates it
         }
         if(m_GemsPlayfield[x][y].animation_mode == 2)
         {
-          m_GemSprite[m_GemsPlayfield[x][y].type-1].SetState("tilting");
-          m_GemSprite[m_GemsPlayfield[x][y].type-1].Draw(fElapsedTime, {x*52.0f, y*52.0f}); // draws the sprite at location x:20, y:20 and animates it
+          m_GemSprite[m_GemsPlayfield[x][y].color-1].SetState("tilting");
+          m_GemSprite[m_GemsPlayfield[x][y].color-1].Draw(fElapsedTime, {x*52.0f, y*52.0f}); // draws the sprite at location x:20, y:20 and animates it
         
         }
         */
