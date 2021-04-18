@@ -73,6 +73,8 @@
 	SUCH DAMAGE.
  */
 
+#include <stack>          // std::stack
+
 #define BOARD_X 8
 #define BOARD_Y 8
 
@@ -81,6 +83,9 @@
 
 #define SCREENSIZE_X 640
 #define SCREENSIZE_Y 480
+
+#define NUMBERS_X 33
+#define NUMBERS_Y 52
  
 class JuwelsGame : public olc::PixelGameEngine
 {
@@ -153,16 +158,41 @@ public:
   
   olc::Renderable gfxTiles;
   
+  olc::Renderable gfxNumbers;
+  
+  uint32_t score;
+  int score_combo = 0;
+  int score_removed_tiles = 0;
+  std::stack<uint32_t> stack_score;
+  
+private:
+  
+  void getScoreInDigits()
+    {
+        stack_score=std::stack<uint32_t>(); //empty stack
+
+        uint32_t number = score;
+
+        while (number > 0) {
+            stack_score.push( number % 10 );
+            number = number / 10;
+        }
+    }
+  
 public:
   bool OnUserCreate() override
   {
     // Called once at the start, so create things here
     
+    score=0; getScoreInDigits(); //max: 4294967295
+
     // configure the sprite:
     olc::Renderable* spritesheet = new olc::Renderable();
     spritesheet->Load("./assets/Gem_Bomb_Rainbow.png");
     
     gfxTiles.Load("./assets/Board.png");
+    
+    gfxNumbers.Load("./assets/Numbers.png");
     
     for (int j = 0; j < 7; j++)
     {
@@ -282,6 +312,8 @@ public:
       bool bRainbowToRemove = false;
       
       
+      int score_removed_tiles = 0;
+      
       // Gameplay
       switch (nState)
       {
@@ -293,6 +325,10 @@ public:
             // Get Mouse in world
             if (GetMouse(0).bPressed)
             {
+              //  start new combo series
+              score_combo = 0;
+      
+              
               olc::vi2d vMouse = { GetMouseX(), GetMouseY() };
               
               
@@ -403,6 +439,9 @@ public:
             
             bBombToRemove = false;
             
+            score_combo++;
+            score_removed_tiles = 0;
+            
             
             for (int x = 0; x < BOARD_X; x++)
             {
@@ -426,6 +465,8 @@ public:
                     while (nChain > 0)
                     {
                       m_GemsPlayfield[x + nChain - 1][y].bRemove = true;
+                      
+                      score_removed_tiles++;
                       
                       if (m_GemsPlayfield[x + nChain - 1][y].type == sGem::GEMTYPE::BOMB)
                       {                       
@@ -465,6 +506,8 @@ public:
                     while (nChain > 0)
                     {
                       m_GemsPlayfield[x][y + nChain - 1].bRemove = true;
+                      
+                      score_removed_tiles++;
                       
                       
                       if (m_GemsPlayfield[x][y + nChain - 1].type == sGem::GEMTYPE::BOMB)
@@ -527,6 +570,8 @@ public:
                         int m = std::min(std::max(i + x, 0), BOARD_X-1);
                         int n = std::min(std::max(j + y, 0), BOARD_Y-1);
                         m_GemsPlayfield[m][n].bRemove = true;
+                        
+                        score_removed_tiles++;
                       }
                     }
                   }
@@ -549,7 +594,10 @@ public:
                       for (int l = 0; l < BOARD_Y; l++)
                       {
                         if(m_GemsPlayfield[x][y].color == m_GemsPlayfield[k][l].color)
+                        { 
                           m_GemsPlayfield[k][l].bRemove = true;
+                          score_removed_tiles++;
+                        }
                       }
                     }
                     
@@ -569,7 +617,7 @@ public:
             if (bGemsToRemove)
               fDelayTime = 0.75f;
             
-            
+            score += std::pow(score_combo,2)*score_removed_tiles*10;
             
             
             break;
@@ -577,6 +625,8 @@ public:
             case STATE_CHECK_BOMB:
               
               bBombToRemove = false;
+              
+              score_removed_tiles = 0;
               
               // bomb exploded and remove vicinity
               // maybe another bomb will explode or a rainbow will be triggered
@@ -594,6 +644,7 @@ public:
                         int m = std::min(std::max(i + x, 0), BOARD_X-1);
                         int n = std::min(std::max(j + y, 0), BOARD_Y-1);
                         m_GemsPlayfield[m][n].bRemove = true;
+                        score_removed_tiles++;
                         
                         if (m_GemsPlayfield[m][n].type == sGem::GEMTYPE::RAINBOW && m_GemsPlayfield[m][n].bRemove)
                         {
@@ -602,7 +653,10 @@ public:
                             for (int l = 0; l < BOARD_Y; l++)
                             {
                               if(m_GemsPlayfield[m][n].color == m_GemsPlayfield[k][l].color)
+                              {
                                 m_GemsPlayfield[k][l].bRemove = true;
+                                score_removed_tiles++;
+                              }
                             }
                           }
                           
@@ -624,6 +678,10 @@ public:
                 nNextState = STATE_ERASE;
               
               fDelayTime = 0.75f;
+              
+              score += std::pow(score_combo,2)*score_removed_tiles*10;
+            
+              
               break;
               
               case STATE_ERASE:
@@ -729,6 +787,8 @@ public:
     
     //DrawDecal({0.0f, 0.0f}, gfxTiles.Decal());
     
+    
+    
     // draw the playfield
     for (int x = 0; x < BOARD_X; x++)
     {
@@ -742,6 +802,35 @@ public:
       }
     }
     
+    
+    // Draw score
+    
+    float offset_numbers_X = 0.5f*(SCREENSIZE_X-10*NUMBERS_X);
+    
+    
+    getScoreInDigits();
+    int countIdx = 0;
+    int stackSize = stack_score.size();
+    while (!stack_score.empty()) {
+
+            uint32_t numberOnStack = stack_score.top();
+            stack_score.pop();
+            DrawPartialDecal({SCREENSIZE_X-offset_numbers_X+(-1*stackSize+countIdx)*NUMBERS_X, 8.0f*TILESIZE_Y}, gfxNumbers.Decal(), {numberOnStack*float(NUMBERS_X), 0.0f}, {NUMBERS_X,NUMBERS_Y} );
+            countIdx++;
+        }
+
+        // adding 0 to unused score fields
+        for (int i = 0; i <= 9-countIdx; i++)
+        {
+          DrawPartialDecal({offset_numbers_X+i*NUMBERS_X, 8.0f*TILESIZE_Y}, gfxNumbers.Decal(), {0*NUMBERS_X, 0}, {NUMBERS_X,NUMBERS_Y} );
+            
+           // reg.batch.draw(texNumbers[0], 60+i*texNumbers[0].getRegionWidth(),reg.windowHeight-texNumbers[0].getRegionHeight()-20 );
+        }
+    //DrawDecal({offset_X, 8.0f*TILESIZE_Y}, gfxNumbers.Decal());
+    
+    DrawStringDecal({0,0},std::to_string(score_combo));
+    
+    // Draw fragments if applicable
     
     for (auto &f : fragments)
     {
