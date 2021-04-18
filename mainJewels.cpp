@@ -4,6 +4,50 @@
 #define OLC_PGEX_ANIMSPR
 #include "olcPGEX_AnimatedSprite.h"
 
+
+/*
+ * Jewels - Basic implementation of Match 3 Gameplay
+ * 
+ * Version: 0.3
+ * Created on 3. April 2021
+ * Last modified on: 18. April 2021
+ * Author: Bondoki (Ron Dockhorn)
+ * 
+ * Heavily inspired by the Match3 example in the 50K Live code party of Javidx9 ( https://www.youtube.com/watch?v=7y8Zg87rtjs ) gave the idea for this.
+ * For the original source with olcConsoleGameEngine please see: https://github.com/OneLoneCoder/videos/blob/master/OneLoneCoder_MatchingGems_50KSubSpecial.cpp
+ * 
+ * It's just for fun and educational purpose. Feel free to modify and use it :)
+ * If you want to use the assets, feel free to use it. Acknowledgement is highly appreciated. 
+ * 
+ * Compile on Linux (tested with gcc 8.2.1):
+ * g++ -o Jewel mainJewels.cpp -lX11 -lGL -lpthread -lpng -lstdc++fs -std=c++17
+ * 
+ * Special gems:
+ * Bomb: 4 gems in consecutive order row/column
+ * Rainbow: 5 gems in consecutive order row/column
+ * 
+ * Effect:
+ * Bomb: destroy 3x3 vicinity of bomb
+ * Rainbow: destroy all gems of same color
+ * 
+ * Random Drop:
+ * Bomb: 1/64
+ * Rainbow: 1/4096
+ * 
+ * ToDo:
+ * + Score counter
+ * + Animation of swap
+ * + Cursor sprite
+ * 
+ * License: This piece of code is licensed to OLC-3 according to
+ * https://github.com/OneLoneCoder/olcPixelGameEngine/blob/master/LICENCE.md
+ * also attributing Javidx9 for the unique and easy-to-use olc::PixelGameEngine and the underlying OLC-3 license see
+ * https://github.com/OneLoneCoder/olcPixelGameEngine/wiki/Licencing
+ * For more information about Javidx9 and OneLoneCoder please see https://github.com/OneLoneCoder
+ * Also big thanks to Matt Hayward, 0xnicholasc, and Moros1138 for the olcPGEX_AnimatedSprite extension.
+ * Please see https://github.com/matt-hayward/olcPGEX_AnimatedSprite and the underlying OLC-3 license.
+ */
+
 class JuwelsGame : public olc::PixelGameEngine
 {
 public:
@@ -514,7 +558,7 @@ public:
                     m_GemsPlayfield[x][y].bRemove = false;
                     m_GemsPlayfield[x][y].type = sGem::GEMTYPE::BOMB;
                     
-                    m_GemsPlayfield[x][y].sprite.SetState("bomb rotating");
+                    m_GemsPlayfield[x][y].sprite.SetState("bomb idle");
                
                   }
                   
@@ -524,7 +568,7 @@ public:
                     m_GemsPlayfield[x][y].bRemove = false;
                     m_GemsPlayfield[x][y].type = sGem::GEMTYPE::RAINBOW;
                     
-                    m_GemsPlayfield[x][y].sprite.SetState("rainbow rotating");
+                    m_GemsPlayfield[x][y].sprite.SetState("rainbow idle");
                
                   }
                   
@@ -590,7 +634,7 @@ public:
             }
             
             if (bGemsToRemove)
-              fDelayTime = 1.75f;
+              fDelayTime = 0.75f;
             
           
           
@@ -646,7 +690,7 @@ public:
              else
               nNextState = STATE_ERASE;
             
-             fDelayTime = 1.75f;
+             fDelayTime = 0.75f;
             break;
           
           case STATE_ERASE:
@@ -704,13 +748,13 @@ public:
               if (!m_GemsPlayfield[x][0].bExist)
               {
                 
-                m_GemsPlayfield[x][0].color = rand() % 5 + 1;
+                m_GemsPlayfield[x][0].color = rand() % 7 + 1;
                 m_GemsPlayfield[x][0].animation_mode = 1;
                 m_GemsPlayfield[x][0].sprite = m_GemSprite[m_GemsPlayfield[x][0].color-1];
                 m_GemsPlayfield[x][0].bExist = true;
                 m_GemsPlayfield[x][0].bRemove = false;
                 //m_GemsPlayfield[x][0].bBomb = rand() % 64 + 1 <= 1 ? true : false;
-                m_GemsPlayfield[x][0].type = rand() % 64 + 1 > 1 ? sGem::GEMTYPE::GEM : rand() % 64 + 1 > 16 ? sGem::GEMTYPE::BOMB : sGem::GEMTYPE::RAINBOW;
+                m_GemsPlayfield[x][0].type = rand() % 64 + 1 > 1 ? sGem::GEMTYPE::GEM : rand() % 64 + 1 > 1 ? sGem::GEMTYPE::BOMB : sGem::GEMTYPE::RAINBOW;
                 
 //                 if (m_GemsPlayfield[x][0].bBomb)
 //                   m_GemsPlayfield[x][0].sprite.SetState("bomb idle");
