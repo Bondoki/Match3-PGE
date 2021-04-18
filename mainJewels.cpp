@@ -38,6 +38,7 @@
  * + Score counter
  * + Animation of swap
  * + Cursor sprite
+ * + check for simultaneous 3 row and 3 column
  * 
  * License: This piece of code is licensed to OLC-3 according to
  * https://github.com/OneLoneCoder/olcPixelGameEngine/blob/master/LICENCE.md
@@ -62,7 +63,6 @@ public:
     uint8_t animation_mode; // 0 NONE; 1 ROTATING; 2 TILTING
     bool bExist;
     bool bRemove;
-    //bool bBomb;
     olc::AnimatedSprite sprite; 
     
     enum GEMTYPE
@@ -84,15 +84,11 @@ public:
     STATE_NEWGEMS,
   } nState, nNextState;
   
-  // define sprite in your PGE program
+  // define sprite in your PGE program for drawing gems/bombs/rainbow
   std::vector<olc::AnimatedSprite> m_GemSprite;
   
-  // define sprite in your PGE program
-  std::vector<olc::AnimatedSprite> m_BombSprite;
-  
-  // define sprite in your PGE program
+  // define sprite in your PGE program for explosion
   std::vector<olc::AnimatedSprite> m_FragmentSprite;
-  
   
   // Playfield
   sGem m_GemsPlayfield[8][8];
@@ -103,9 +99,7 @@ public:
   
   olc::vi2d nCursor = {0,0};
   olc::vi2d nSwap = {0,0};
-  //int nCursorX = 0, nCursorY = 0;
-  //int nSwapX = 0, nSwapY = 0;
-
+  
   bool bSwapFail = false;
   bool bGemsToRemove = false;
   
@@ -182,36 +176,6 @@ public:
       m_GemSprite.push_back(sprite);
     }
     
-    // configure the sprite:
-    olc::Renderable* spritesheetBomb = new olc::Renderable();
-    spritesheetBomb->Load("./assets/Gem_Bomb.png");
-    
-    for (int j = 0; j < 7; j++)
-    {
-      olc::AnimatedSprite sprite;
-      sprite.mode = olc::AnimatedSprite::SPRITE_MODE::SINGLE; // set sprite to use a single spritesheet
-      sprite.spriteSheet = spritesheetBomb; // define image to use for the spritesheet
-      sprite.SetSpriteSize({52, 52}); // define size of each sprite with an olc::vi2d
-      sprite.SetSpriteScale(1.0f); // define scale of sprite; 1.0f is original size. Must be above 0 and defaults to 1.0f
-      sprite.type = olc::AnimatedSprite::SPRITE_TYPE::DECAL;
-      
-      // define states - state name and vector of olc::vi2d to define the top-left position of each frame in the spritesheet
-      std::vector<olc::vi2d> pos;
-      
-      
-      sprite.AddState("idle", 0.1f, olc::AnimatedSprite::PLAY_MODE::LOOP, {olc::vi2d({0,   52*(2*j)+52}),});
-      
-      for(int i=0; i < 39; i++)
-        pos.push_back( olc::vi2d({i*52,   (2*j)*52+52}));
-      
-      sprite.AddState("rotating", 0.1f, olc::AnimatedSprite::PLAY_MODE::LOOP, pos);
-      
-      // set initial state
-      sprite.SetState("idle");
-      
-      m_BombSprite.push_back(sprite);
-    }
-    
     for (int j = 0; j < 7; j++)
     {
       olc::AnimatedSprite sprite;
@@ -247,7 +211,6 @@ public:
         m_GemsPlayfield[x][y].sprite = m_GemSprite[m_GemsPlayfield[x][y].color-1];
         m_GemsPlayfield[x][y].bExist = false;
         m_GemsPlayfield[x][y].bRemove = false;
-        //m_GemsPlayfield[x][y].bBomb = false;
         m_GemsPlayfield[x][y].type = sGem::GEMTYPE::GEM;
       }
     }
@@ -285,7 +248,7 @@ public:
       
       bool bRainbowToRemove = false;
       
-     
+      
       // Gameplay
       switch (nState)
       {
@@ -308,26 +271,18 @@ public:
                 {
                   m_GemsPlayfield[vCell.x][vCell.y].animation_mode = 1;//rand() % 2 +1;//(m_GemsPlayfield[vCell.x][vCell.y].animation_mode+1) %3;
                   
-                  //if(m_GemsPlayfield[vCell.x][vCell.y].animation_mode==0)
-                  //  m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("idle");
                   
                   if (m_GemsPlayfield[vCell.x][vCell.y].type ==  sGem::GEMTYPE::GEM)
-                     m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("gem rotating");
+                    m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("gem rotating");
                   else if (m_GemsPlayfield[vCell.x][vCell.y].type ==  sGem::GEMTYPE::BOMB)
                     m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("bomb rotating");
                   else if (m_GemsPlayfield[vCell.x][vCell.y].type ==  sGem::GEMTYPE::RAINBOW)
                     m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("rainbow rotating");
                   
-//                   if(m_GemsPlayfield[vCell.x][vCell.y].animation_mode==1)
-//                     m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("rotating");
-//                   
-//                   if(m_GemsPlayfield[vCell.x][vCell.y].animation_mode==2)
-//                     m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("tilting");
-//                 
-                nCursor.x = vCell.x;
-                nCursor.y = vCell.y;
-                
-                bIsfirstClickMouse = false;
+                  nCursor.x = vCell.x;
+                  nCursor.y = vCell.y;
+                  
+                  bIsfirstClickMouse = false;
                 }
               }
               else
@@ -344,7 +299,6 @@ public:
                     nSwap.y = vCell.y;
                     
                     m_GemsPlayfield[nCursor.x][nCursor.y].animation_mode = 0;//(m_GemsPlayfield[vCell.x][vCell.y].animation_mode+1) %3;
-                    //m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("idle");
                     
                     if (m_GemsPlayfield[nCursor.x][nCursor.y].type ==  sGem::GEMTYPE::GEM)
                       m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("gem idle");
@@ -353,14 +307,14 @@ public:
                     else if (m_GemsPlayfield[nCursor.x][nCursor.y].type ==  sGem::GEMTYPE::RAINBOW)
                       m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("rainbow idle");
                     
-                  
+                    
                     bIsfirstClickMouse = true;
                     nNextState = STATE_SWAP;
                   }
                   else
                   { 
                     m_GemsPlayfield[nCursor.x][nCursor.y].animation_mode = 0;//(m_GemsPlayfield[vCell.x][vCell.y].animation_mode+1) %3;
-                    //m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("idle");
+                    
                     if (m_GemsPlayfield[nCursor.x][nCursor.y].type ==  sGem::GEMTYPE::GEM)
                       m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("gem idle");
                     else if (m_GemsPlayfield[nCursor.x][nCursor.y].type ==  sGem::GEMTYPE::BOMB)
@@ -368,7 +322,7 @@ public:
                     else if (m_GemsPlayfield[nCursor.x][nCursor.y].type ==  sGem::GEMTYPE::RAINBOW)
                       m_GemsPlayfield[nCursor.x][nCursor.y].sprite.SetState("rainbow idle");
                     
-                  
+                    
                     // newly selected 
                     nCursor.x = vCell.x;
                     nCursor.y = vCell.y;
@@ -376,10 +330,7 @@ public:
                     
                     
                     m_GemsPlayfield[vCell.x][vCell.y].animation_mode = 1;//rand() % 2 +1;//(m_GemsPlayfield[vCell.x][vCell.y].animation_mode+1) %3;
-                  
-                  //if(m_GemsPlayfield[vCell.x][vCell.y].animation_mode==0)
-                  //  m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("idle");
-                  
+                    
                     if (m_GemsPlayfield[vCell.x][vCell.y].type ==  sGem::GEMTYPE::GEM)
                       m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("gem rotating");
                     else if (m_GemsPlayfield[vCell.x][vCell.y].type ==  sGem::GEMTYPE::BOMB)
@@ -387,51 +338,19 @@ public:
                     else if (m_GemsPlayfield[vCell.x][vCell.y].type ==  sGem::GEMTYPE::RAINBOW)
                       m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("rainbow rotating");
                     
-                    //               
-                    
-                  //if(m_GemsPlayfield[vCell.x][vCell.y].animation_mode==1)
-                    //m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("rotating");
-                  
-                  //if(m_GemsPlayfield[vCell.x][vCell.y].animation_mode==2)
-                   // m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("tilting");
                     
                     bIsfirstClickMouse = false;
                   }
                 }
                 
-                /*if (GetKey(VK_LEFT).bPressed && nCursorX > 0) nSwapX = nCursorX - 1;
-                 i f (G*etKey(VK_RIGHT).bPressed && nCursorX < 7) nSwapX = nCursorX + 1;
-                 if (GetKey(VK_UP).bPressed && nCursorY > 0) nSwapY = nCursorY - 1;
-                 if (GetKey(VK_DOWN).bPressed && nCursorY < 7) nSwapY = nCursorY + 1;
-                 if (nSwapX != nCursorX || nSwapY != nCursorY) nNextState = STATE_SWAP;
-                 */
+                
                 
               }
               
               
               
             }
-            /*if (!GetKey(VK_SPACE).bHeld)
-            {
-              if (GetKey(VK_LEFT).bPressed) nCursorX--;
-              if (GetKey(VK_RIGHT).bPressed) nCursorX++;
-              if (GetKey(VK_UP).bPressed) nCursorY--;
-              if (GetKey(VK_DOWN).bPressed) nCursorY++;
-              if (nCursorX < 0) nCursorX = 0;
-              if (nCursorX > 7) nCursorX = 7;
-              if (nCursorY < 0) nCursorY = 0;
-              if (nCursorY > 7) nCursorY = 7;
-            }
-            else
-            {
-              nSwapX = nCursorX;
-              nSwapY = nCursorY;
-              if (GetKey(VK_LEFT).bPressed && nCursorX > 0) nSwapX = nCursorX - 1;
-              if (GetKey(VK_RIGHT).bPressed && nCursorX < 7) nSwapX = nCursorX + 1;
-              if (GetKey(VK_UP).bPressed && nCursorY > 0) nSwapY = nCursorY - 1;
-              if (GetKey(VK_DOWN).bPressed && nCursorY < 7) nSwapY = nCursorY + 1;
-              if (nSwapX != nCursorX || nSwapY != nCursorY) nNextState = STATE_SWAP;
-          }*/
+            
           }
           
           break;
@@ -473,17 +392,7 @@ public:
                       m_GemsPlayfield[x + nChain - 1][y].bRemove = true;
                       
                       if (m_GemsPlayfield[x + nChain - 1][y].type == sGem::GEMTYPE::BOMB)
-                      {
-//                         for (int i = -1; i < 2; i++)
-//                         {
-//                           for (int j = -1; j < 2; j++)
-//                           {
-//                             int m = std::min(std::max(i + (x + nChain - 1), 0), 7);
-//                             int n = std::min(std::max(j + y, 0), 7);
-//                             m_GemsPlayfield[m][n].bRemove = true;
-//                           }
-//                         }
-                        
+                      {                       
                         m_GemsPlayfield[x + nChain - 1][y].bRemove = true;
                         
                         bBombToRemove = true;
@@ -491,7 +400,7 @@ public:
                       
                       if (m_GemsPlayfield[x + nChain - 1][y].type == sGem::GEMTYPE::RAINBOW)
                       {
-                                     
+                        
                         m_GemsPlayfield[x + nChain - 1][y].bRemove = true;
                         
                         bRainbowToRemove = true;
@@ -523,17 +432,7 @@ public:
                       
                       
                       if (m_GemsPlayfield[x][y + nChain - 1].type == sGem::GEMTYPE::BOMB)
-                      {
-//                         for (int i = -1; i < 2; i++)
-//                         {
-//                           for (int j = -1; j < 2; j++)
-//                           {
-//                             int m = std::min(std::max(i + x, 0), 7);
-//                             int n = std::min(std::max(j + (y + nChain - 1), 0), 7);
-//                             m_GemsPlayfield[m][n].bRemove = true;
-//                           }
-//                         }
-                        
+                      {             
                         m_GemsPlayfield[x][y + nChain - 1].bRemove = true;
                         
                         bBombToRemove = true;
@@ -554,22 +453,20 @@ public:
                   
                   if (bPlaceBomb)
                   {
-                    //m_GemsPlayfield[x][y].bBomb = true;
                     m_GemsPlayfield[x][y].bRemove = false;
                     m_GemsPlayfield[x][y].type = sGem::GEMTYPE::BOMB;
                     
                     m_GemsPlayfield[x][y].sprite.SetState("bomb idle");
-               
+                    
                   }
                   
                   if (bPlaceRainbow)
                   {
-                    //m_GemsPlayfield[x][y].bBomb = true;
                     m_GemsPlayfield[x][y].bRemove = false;
                     m_GemsPlayfield[x][y].type = sGem::GEMTYPE::RAINBOW;
                     
                     m_GemsPlayfield[x][y].sprite.SetState("rainbow idle");
-               
+                    
                   }
                   
                 }
@@ -627,7 +524,7 @@ public:
               
               nNextState = STATE_CHECK_BOMB;
             }
-           
+            
             if((bBombToRemove != true) && (bRainbowToRemove != true))
             {
               nNextState = STATE_ERASE;
@@ -636,160 +533,154 @@ public:
             if (bGemsToRemove)
               fDelayTime = 0.75f;
             
-          
-          
-          
-          break;
-          
-          case STATE_CHECK_BOMB:
             
-            bBombToRemove = false;
             
-            // bomb exploded and remove vicinity
-            // maybe another bomb will explode or a rainbow will be triggered
             
-            for (int x = 0; x < 8; x++)
-            {
-              for (int y = 0; y < 8; y++)
-              {
-                if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::BOMB && m_GemsPlayfield[x][y].bRemove)
-                {
-                  for (int i = -1; i < 2; i++)
-                  {
-                    for (int j = -1; j < 2; j++)
-                    {
-                      int m = std::min(std::max(i + x, 0), 7);
-                      int n = std::min(std::max(j + y, 0), 7);
-                      m_GemsPlayfield[m][n].bRemove = true;
-                      
-                      if (m_GemsPlayfield[m][n].type == sGem::GEMTYPE::RAINBOW && m_GemsPlayfield[m][n].bRemove)
-                      {
-                        for (int k = 0; k < 8; k++)
-                        {
-                          for (int l = 0; l < 8; l++)
-                          {
-                            if(m_GemsPlayfield[m][n].color == m_GemsPlayfield[k][l].color)
-                              m_GemsPlayfield[k][l].bRemove = true;
-                          }
-                        }
-                        
-                        m_GemsPlayfield[m][n].type = sGem::GEMTYPE::GEM;
-                      }
-                      
-                    }
-                  }
-                  m_GemsPlayfield[x][y].type = sGem::GEMTYPE::GEM;
-                  bBombToRemove = true;
-                }
-              }
-            }
-            
-            //maybe this triggers another bomb
-             if(bBombToRemove)
-               nNextState = STATE_CHECK_BOMB;
-             else
-              nNextState = STATE_ERASE;
-            
-             fDelayTime = 0.75f;
             break;
-          
-          case STATE_ERASE:
-            if (!bGemsToRemove)
-            {
-              if (bSwapFail)
-              {
-                std::swap(m_GemsPlayfield[nCursor.x][nCursor.y], m_GemsPlayfield[nSwap.x][nSwap.y]);
-              }
+            
+            case STATE_CHECK_BOMB:
               
-              nNextState = STATE_USER;
-            }
-            else
-            {
+              bBombToRemove = false;
+              
+              // bomb exploded and remove vicinity
+              // maybe another bomb will explode or a rainbow will be triggered
+              
               for (int x = 0; x < 8; x++)
               {
                 for (int y = 0; y < 8; y++)
                 {
-                  if (m_GemsPlayfield[x][y].bRemove)
+                  if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::BOMB && m_GemsPlayfield[x][y].bRemove)
                   {
-                    m_GemsPlayfield[x][y].bExist = false;
-                    m_GemsPlayfield[x][y].type == sGem::GEMTYPE::GEM;
-                    boom(x * 52 + 26, y * 52 + 26, 15, m_GemsPlayfield[x][y].color);
-                    nTotalGems--;
+                    for (int i = -1; i < 2; i++)
+                    {
+                      for (int j = -1; j < 2; j++)
+                      {
+                        int m = std::min(std::max(i + x, 0), 7);
+                        int n = std::min(std::max(j + y, 0), 7);
+                        m_GemsPlayfield[m][n].bRemove = true;
+                        
+                        if (m_GemsPlayfield[m][n].type == sGem::GEMTYPE::RAINBOW && m_GemsPlayfield[m][n].bRemove)
+                        {
+                          for (int k = 0; k < 8; k++)
+                          {
+                            for (int l = 0; l < 8; l++)
+                            {
+                              if(m_GemsPlayfield[m][n].color == m_GemsPlayfield[k][l].color)
+                                m_GemsPlayfield[k][l].bRemove = true;
+                            }
+                          }
+                          
+                          m_GemsPlayfield[m][n].type = sGem::GEMTYPE::GEM;
+                        }
+                        
+                      }
+                    }
+                    m_GemsPlayfield[x][y].type = sGem::GEMTYPE::GEM;
+                    bBombToRemove = true;
                   }
                 }
               }
               
-               bGemsToRemove = false;
-               
-               if(bBombToRemove)
-                  nNextState = STATE_CHECK_BOMB;
+              //maybe this triggers another bomb
+              if(bBombToRemove)
+                nNextState = STATE_CHECK_BOMB;
               else
-                nNextState = STATE_COMPRESS;
-            }
-            break;
-          case STATE_COMPRESS:
-            
-            for (int y = 6; y >= 0; y--)
-            {
-              for (int x = 0; x < 8; x++)
-              {
-                if (m_GemsPlayfield[x][y].bExist && !m_GemsPlayfield[x][y + 1].bExist)
-                  std::swap(m_GemsPlayfield[x][y], m_GemsPlayfield[x][y + 1]);
-              }
-            }
-            
-            fDelayTime = 0.1f;
-            nNextState = STATE_NEWGEMS;
-            break;
-            
-          case STATE_NEWGEMS:
-            for (int x = 0; x < 8; x++)
-            {
-              if (!m_GemsPlayfield[x][0].bExist)
-              {
+                nNextState = STATE_ERASE;
+              
+              fDelayTime = 0.75f;
+              break;
+              
+              case STATE_ERASE:
+                if (!bGemsToRemove)
+                {
+                  if (bSwapFail)
+                  {
+                    std::swap(m_GemsPlayfield[nCursor.x][nCursor.y], m_GemsPlayfield[nSwap.x][nSwap.y]);
+                  }
+                  
+                  nNextState = STATE_USER;
+                }
+                else
+                {
+                  for (int x = 0; x < 8; x++)
+                  {
+                    for (int y = 0; y < 8; y++)
+                    {
+                      if (m_GemsPlayfield[x][y].bRemove)
+                      {
+                        m_GemsPlayfield[x][y].bExist = false;
+                        m_GemsPlayfield[x][y].type == sGem::GEMTYPE::GEM;
+                        boom(x * 52 + 26, y * 52 + 26, 15, m_GemsPlayfield[x][y].color);
+                        nTotalGems--;
+                      }
+                    }
+                  }
+                  
+                  bGemsToRemove = false;
+                  
+                  if(bBombToRemove)
+                    nNextState = STATE_CHECK_BOMB;
+                  else
+                    nNextState = STATE_COMPRESS;
+                }
+                break;
+              case STATE_COMPRESS:
                 
-                m_GemsPlayfield[x][0].color = rand() % 7 + 1;
-                m_GemsPlayfield[x][0].animation_mode = 1;
-                m_GemsPlayfield[x][0].sprite = m_GemSprite[m_GemsPlayfield[x][0].color-1];
-                m_GemsPlayfield[x][0].bExist = true;
-                m_GemsPlayfield[x][0].bRemove = false;
-                //m_GemsPlayfield[x][0].bBomb = rand() % 64 + 1 <= 1 ? true : false;
-                m_GemsPlayfield[x][0].type = rand() % 64 + 1 > 1 ? sGem::GEMTYPE::GEM : rand() % 64 + 1 > 1 ? sGem::GEMTYPE::BOMB : sGem::GEMTYPE::RAINBOW;
+                for (int y = 6; y >= 0; y--)
+                {
+                  for (int x = 0; x < 8; x++)
+                  {
+                    if (m_GemsPlayfield[x][y].bExist && !m_GemsPlayfield[x][y + 1].bExist)
+                      std::swap(m_GemsPlayfield[x][y], m_GemsPlayfield[x][y + 1]);
+                  }
+                }
                 
-//                 if (m_GemsPlayfield[x][0].bBomb)
-//                   m_GemsPlayfield[x][0].sprite.SetState("bomb idle");
-//                 else
-//                   m_GemsPlayfield[x][0].sprite.SetState("gem idle");
-//                 
-                if (m_GemsPlayfield[x][0].type ==  sGem::GEMTYPE::GEM)
-                  m_GemsPlayfield[x][0].sprite.SetState("gem idle");
-                else if (m_GemsPlayfield[x][0].type ==  sGem::GEMTYPE::BOMB)
-                  m_GemsPlayfield[x][0].sprite.SetState("bomb idle");
-                else if (m_GemsPlayfield[x][0].type ==  sGem::GEMTYPE::RAINBOW)
-                  m_GemsPlayfield[x][0].sprite.SetState("rainbow idle");
+                fDelayTime = 0.1f;
+                nNextState = STATE_NEWGEMS;
+                break;
+                
+              case STATE_NEWGEMS:
+                for (int x = 0; x < 8; x++)
+                {
+                  if (!m_GemsPlayfield[x][0].bExist)
+                  {
+                    
+                    m_GemsPlayfield[x][0].color = rand() % 7 + 1;
+                    m_GemsPlayfield[x][0].animation_mode = 1;
+                    m_GemsPlayfield[x][0].sprite = m_GemSprite[m_GemsPlayfield[x][0].color-1];
+                    m_GemsPlayfield[x][0].bExist = true;
+                    m_GemsPlayfield[x][0].bRemove = false;
+                    m_GemsPlayfield[x][0].type = rand() % 64 + 1 > 1 ? sGem::GEMTYPE::GEM : rand() % 64 + 1 > 1 ? sGem::GEMTYPE::BOMB : sGem::GEMTYPE::RAINBOW;
+                    
+                    if (m_GemsPlayfield[x][0].type ==  sGem::GEMTYPE::GEM)
+                      m_GemsPlayfield[x][0].sprite.SetState("gem idle");
+                    else if (m_GemsPlayfield[x][0].type ==  sGem::GEMTYPE::BOMB)
+                      m_GemsPlayfield[x][0].sprite.SetState("bomb idle");
+                    else if (m_GemsPlayfield[x][0].type ==  sGem::GEMTYPE::RAINBOW)
+                      m_GemsPlayfield[x][0].sprite.SetState("rainbow idle");
+                    
+                    
+                    nTotalGems++;
+                  }
+                }
+                
+                if (nTotalGems < 64)
+                {
+                  fDelayTime = 0.1f;
+                  nNextState = STATE_COMPRESS;
+                }
+                else
+                  nNextState = STATE_CHECK;
                 
                 
-                nTotalGems++;
-              }
-            }
-            
-            if (nTotalGems < 64)
-            {
-              fDelayTime = 0.1f;
-              nNextState = STATE_COMPRESS;
-            }
-            else
-              nNextState = STATE_CHECK;
-            
-            
-            break;
+                break;
       }
       
       
       nState = nNextState;
       
     } // End Gameplay
-  
+    
     
     Clear(olc::VERY_DARK_BLUE);
     
@@ -801,33 +692,11 @@ public:
       for (int y = 0; y < 8; y++)
       {
         if (m_GemsPlayfield[x][y].bExist)
-        {  //if(m_GemsPlayfield[x][y].bBomb == true)
-            //  m_BombSprite[m_GemsPlayfield[x][y].color-1].Draw(fElapsedTime, {x*52.0f, y*52.0f}, olc::Sprite::Flip::NONE, m_GemsPlayfield[x][y].bRemove ? olc::VERY_DARK_GREY : olc::WHITE);
-            //else
-              m_GemsPlayfield[x][y].sprite.Draw(fElapsedTime, {x*52.0f, y*52.0f}, olc::Sprite::Flip::NONE, m_GemsPlayfield[x][y].bRemove ? olc::DARK_GREY : olc::WHITE); // draws the sprite at location x, y and animates it
+        {  
+          m_GemsPlayfield[x][y].sprite.Draw(fElapsedTime, {x*52.0f, y*52.0f}, olc::Sprite::Flip::NONE, m_GemsPlayfield[x][y].bRemove ? olc::DARK_GREY : olc::WHITE); // draws the sprite at location x, y and animates it
         }
-        /*if(m_GemsPlayfield[x][y].animation_mode == 0)
-        {
-          m_GemSprite[m_GemsPlayfield[x][y].color-1].SetState("idle");
-          m_GemSprite[m_GemsPlayfield[x][y].color-1].Draw(fElapsedTime, {x*52.0f, y*52.0f}); // draws the sprite at location x:20, y:20 and animates it
-        }
-        if(m_GemsPlayfield[x][y].animation_mode == 1)
-        {
-          m_GemSprite[m_GemsPlayfield[x][y].color-1].SetState("rotating");
-          m_GemSprite[m_GemsPlayfield[x][y].color-1].Draw(fElapsedTime, {x*52.0f, y*52.0f}); // draws the sprite at location x:20, y:20 and animates it
-        }
-        if(m_GemsPlayfield[x][y].animation_mode == 2)
-        {
-          m_GemSprite[m_GemsPlayfield[x][y].color-1].SetState("tilting");
-          m_GemSprite[m_GemsPlayfield[x][y].color-1].Draw(fElapsedTime, {x*52.0f, y*52.0f}); // draws the sprite at location x:20, y:20 and animates it
-        
-        }
-        */
-        
       }
     }
-    
-    //std::cout << fragments.size() << " ";
     
     
     for (auto &f : fragments)
@@ -839,56 +708,11 @@ public:
     
     // erase - remove_if idom
     fragments.erase(
-    std::remove_if(fragments.begin(), fragments.end(),
-        [&](const sFragment &f) { return f.x < 0 || f.x > ScreenWidth() || f.y < 0 || f.y > ScreenHeight(); }),
-    fragments.end());
+      std::remove_if(fragments.begin(), fragments.end(),
+                     [&](const sFragment &f) { return f.x < 0 || f.x > ScreenWidth() || f.y < 0 || f.y > ScreenHeight(); }),
+                    fragments.end());
     
     
-//     std::remove_if(fragments.begin(), fragments.end(), 
-//                    [&](const sFragment &f)
-//                    {
-//                      //return f.x < 0 || f.x > ScreenWidth() || f.y < 0 || f.y > ScreenHeight();
-//                      return f.x < 0 || f.x > 640 || f.y < 0 || f.y > 480;
-//                    });
-//     
-
-
-    
-//     Get Mouse in world
-//     if (GetMouse(0).bPressed)
-//     {
-//       olc::vi2d vMouse = { GetMouseX(), GetMouseY() };
-//       
-//       Work out active cell
-//       olc::vi2d vCell = { vMouse.x / 52, vMouse.y / 52 };
-//       
-//       if(vCell.x >= 0 && vCell.x < 8 && vCell.y >= 0 && vCell.y <8)
-//       {
-//         m_GemsPlayfield[vCell.x][vCell.y].animation_mode = (m_GemsPlayfield[vCell.x][vCell.y].animation_mode+1) %3;
-//         
-//         if(m_GemsPlayfield[vCell.x][vCell.y].animation_mode==0)
-//           m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("idle");
-//         
-//         if(m_GemsPlayfield[vCell.x][vCell.y].animation_mode==1)
-//           m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("rotating");
-//         
-//         if(m_GemsPlayfield[vCell.x][vCell.y].animation_mode==2)
-//           m_GemsPlayfield[vCell.x][vCell.y].sprite.SetState("tilting");
-//       }
-//       
-//     }
-    
-    //
-      
-    
-                
-    
-    if(GetKey(olc::Key::S).bPressed)
-    {
-      
-      !m_GemSprite[0].GetState().compare("idle") ? m_GemSprite[0].SetState("rotating") : !m_GemSprite[0].GetState().compare("rotating") ? m_GemSprite[0].SetState("tilting") : m_GemSprite[0].SetState("idle");
-      
-    }
     // Graceful exit if user is in full screen mode
     return !GetKey(olc::Key::ESCAPE).bPressed;
   }
