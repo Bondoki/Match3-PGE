@@ -49,6 +49,15 @@
  * Please see https://github.com/matt-hayward/olcPGEX_AnimatedSprite and the underlying OLC-3 license.
  */
 
+#define BOARD_X 8
+#define BOARD_Y 8
+
+#define TILESIZE_X 52
+#define TILESIZE_Y 52
+
+#define SCREENSIZE_X 640
+#define SCREENSIZE_Y 480
+ 
 class JuwelsGame : public olc::PixelGameEngine
 {
 public:
@@ -91,7 +100,7 @@ public:
   std::vector<olc::AnimatedSprite> m_FragmentSprite;
   
   // Playfield
-  sGem m_GemsPlayfield[8][8];
+  sGem m_GemsPlayfield[BOARD_X][BOARD_Y];
   
   float fDelayTime = 0.0f;
   
@@ -136,7 +145,7 @@ public:
       olc::AnimatedSprite sprite;
       sprite.mode = olc::AnimatedSprite::SPRITE_MODE::SINGLE; // set sprite to use a single spritesheet
       sprite.spriteSheet = spritesheet; // define image to use for the spritesheet
-      sprite.SetSpriteSize({52, 52}); // define size of each sprite with an olc::vi2d
+      sprite.SetSpriteSize({TILESIZE_X, TILESIZE_Y}); // define size of each sprite with an olc::vi2d
       sprite.SetSpriteScale(1.0f); // define scale of sprite; 1.0f is original size. Must be above 0 and defaults to 1.0f
       sprite.type = olc::AnimatedSprite::SPRITE_TYPE::DECAL;
       
@@ -144,28 +153,28 @@ public:
       std::vector<olc::vi2d> pos;
       
       
-      sprite.AddState("gem idle", 0.1f, olc::AnimatedSprite::PLAY_MODE::LOOP, {olc::vi2d({0,   52*(3*j)}),});
+      sprite.AddState("gem idle", 0.1f, olc::AnimatedSprite::PLAY_MODE::LOOP, {olc::vi2d({0,   TILESIZE_Y*(3*j)}),});
       
       for(int i=0; i < 39; i++)
-        pos.push_back( olc::vi2d({i*52,   (3*j)*52}));
+        pos.push_back( olc::vi2d({i*TILESIZE_X,   (3*j)*TILESIZE_Y}));
       
       sprite.AddState("gem rotating", 0.1f, olc::AnimatedSprite::PLAY_MODE::LOOP, pos);
       
       
       
-      sprite.AddState("bomb idle", 0.1f, olc::AnimatedSprite::PLAY_MODE::LOOP, {olc::vi2d({0,   52*(3*j)+52}),});
+      sprite.AddState("bomb idle", 0.1f, olc::AnimatedSprite::PLAY_MODE::LOOP, {olc::vi2d({0,   TILESIZE_Y*(3*j)+TILESIZE_Y}),});
       
       pos.clear();
       for(int i=0; i < 39; i++)
-        pos.push_back( olc::vi2d({i*52,   (3*j)*52+52}));
+        pos.push_back( olc::vi2d({i*TILESIZE_X,   (3*j)*TILESIZE_Y+TILESIZE_Y}));
       
       sprite.AddState("bomb rotating", 0.1f, olc::AnimatedSprite::PLAY_MODE::LOOP, pos);
       
-      sprite.AddState("rainbow idle", 0.1f, olc::AnimatedSprite::PLAY_MODE::LOOP, {olc::vi2d({0,   52*(3*j)+104}),});
+      sprite.AddState("rainbow idle", 0.1f, olc::AnimatedSprite::PLAY_MODE::LOOP, {olc::vi2d({0,   TILESIZE_Y*(3*j)+2*TILESIZE_Y}),});
       
       pos.clear();
       for(int i=0; i < 39; i++)
-        pos.push_back( olc::vi2d({i*52,   (3*j)*52+104}));
+        pos.push_back( olc::vi2d({i*TILESIZE_X,   (3*j)*TILESIZE_Y+2*TILESIZE_Y}));
       
       sprite.AddState("rainbow rotating", 0.1f, olc::AnimatedSprite::PLAY_MODE::LOOP, pos);
       
@@ -181,7 +190,7 @@ public:
       olc::AnimatedSprite sprite;
       sprite.mode = olc::AnimatedSprite::SPRITE_MODE::SINGLE; // set sprite to use a single spritesheet
       sprite.spriteSheet = spritesheet; // define image to use for the spritesheet
-      sprite.SetSpriteSize({52, 52}); // define size of each sprite with an olc::vi2d
+      sprite.SetSpriteSize({TILESIZE_X, TILESIZE_Y}); // define size of each sprite with an olc::vi2d
       sprite.SetSpriteScale(0.25f); // define scale of sprite; 1.0f is original size. Must be above 0 and defaults to 1.0f
       sprite.type = olc::AnimatedSprite::SPRITE_TYPE::DECAL;
       
@@ -189,7 +198,7 @@ public:
       std::vector<olc::vi2d> pos;
       
       for(int i=0; i < 39; i++)
-        pos.push_back( olc::vi2d({i*52,   (3*j)*52+0}));
+        pos.push_back( olc::vi2d({i*TILESIZE_X,   (3*j)*TILESIZE_Y+0}));
       
       
       sprite.AddState("rotating", 0.02f, olc::AnimatedSprite::PLAY_MODE::LOOP, pos);
@@ -202,9 +211,9 @@ public:
     
     
     // fill the playfield
-    for (int x = 0; x < 8; x++)
+    for (int x = 0; x < BOARD_X; x++)
     {
-      for (int y = 0; y < 8; y++)
+      for (int y = 0; y < BOARD_Y; y++)
       {
         m_GemsPlayfield[x][y].color = rand() % 7 + 1;
         m_GemsPlayfield[x][y].animation_mode = 0;
@@ -262,12 +271,15 @@ public:
             {
               olc::vi2d vMouse = { GetMouseX(), GetMouseY() };
               
+              
               // Work out active cell
-              olc::vi2d vCell = { vMouse.x / 52, vMouse.y / 52 };
+              float offset_X = 0.5f*(SCREENSIZE_X-BOARD_X*TILESIZE_X);
+              
+              olc::vi2d vCell = { (vMouse.x-int(offset_X)) / TILESIZE_X, vMouse.y / TILESIZE_Y };
               
               if(bIsfirstClickMouse == true)
               {
-                if(vCell.x >= 0 && vCell.x < 8 && vCell.y >= 0 && vCell.y <8)
+                if(vCell.x >= 0 && vCell.x < BOARD_X && vCell.y >= 0 && vCell.y <BOARD_Y)
                 {
                   m_GemsPlayfield[vCell.x][vCell.y].animation_mode = 1;//rand() % 2 +1;//(m_GemsPlayfield[vCell.x][vCell.y].animation_mode+1) %3;
                   
@@ -290,7 +302,7 @@ public:
                 nSwap.x = nCursor.x;
                 nSwap.y = nCursor.y;
                 
-                if(vCell.x >= 0 && vCell.x < 8 && vCell.y >= 0 && vCell.y <8)
+                if(vCell.x >= 0 && vCell.x < BOARD_X && vCell.y >= 0 && vCell.y <BOARD_Y)
                 {
                   // second tile in vicinity
                   if((nCursor-vCell).mag2() == 1 )
@@ -368,9 +380,9 @@ public:
             bBombToRemove = false;
             
             
-            for (int x = 0; x < 8; x++)
+            for (int x = 0; x < BOARD_X; x++)
             {
-              for (int y = 0; y < 8; y++)
+              for (int y = 0; y < BOARD_Y; y++)
               {
                 if (!m_GemsPlayfield[x][y].bRemove)
                 {
@@ -380,7 +392,7 @@ public:
                   
                   // Check Horizontally
                   int nChain = 1;
-                  while (((nChain + x) < 8) && (m_GemsPlayfield[x][y].color == m_GemsPlayfield[x + nChain][y].color) ) nChain++;
+                  while (((nChain + x) < BOARD_X) && (m_GemsPlayfield[x][y].color == m_GemsPlayfield[x + nChain][y].color) ) nChain++;
                   if (nChain >= 3)
                   {
                     if (nChain == 4) bPlaceBomb = true;
@@ -417,7 +429,7 @@ public:
                   // Check Vertically
                   nChain = 1;
                   //while ( ((nChain + y) < 8) && (m_GemsPlayfield[x][y].color == m_GemsPlayfield[x][y + nChain].color) && (!m_GemsPlayfield[x][y+ nChain].bRemove) ) nChain++;
-                  while ( ((nChain + y) < 8) && (m_GemsPlayfield[x][y].color == m_GemsPlayfield[x][y + nChain].color)  ) nChain++;
+                  while ( ((nChain + y) < BOARD_Y) && (m_GemsPlayfield[x][y].color == m_GemsPlayfield[x][y + nChain].color)  ) nChain++;
                   
                   if (nChain >= 3)
                   {
@@ -478,9 +490,9 @@ public:
             
             if(bBombToRemove == true)
             {
-              for (int x = 0; x < 8; x++)
+              for (int x = 0; x < BOARD_X; x++)
               {
-                for (int y = 0; y < 8; y++)
+                for (int y = 0; y < BOARD_Y; y++)
                 {
                   if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::BOMB && m_GemsPlayfield[x][y].bRemove)
                   {
@@ -488,8 +500,8 @@ public:
                     {
                       for (int j = -1; j < 2; j++)
                       {
-                        int m = std::min(std::max(i + x, 0), 7);
-                        int n = std::min(std::max(j + y, 0), 7);
+                        int m = std::min(std::max(i + x, 0), BOARD_X-1);
+                        int n = std::min(std::max(j + y, 0), BOARD_Y-1);
                         m_GemsPlayfield[m][n].bRemove = true;
                       }
                     }
@@ -502,15 +514,15 @@ public:
             
             if(bRainbowToRemove == true)
             {
-              for (int x = 0; x < 8; x++)
+              for (int x = 0; x < BOARD_X; x++)
               {
-                for (int y = 0; y < 8; y++)
+                for (int y = 0; y < BOARD_Y; y++)
                 {
                   if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::RAINBOW && m_GemsPlayfield[x][y].bRemove)
                   {
-                    for (int k = 0; k < 8; k++)
+                    for (int k = 0; k < BOARD_X; k++)
                     {
-                      for (int l = 0; l < 8; l++)
+                      for (int l = 0; l < BOARD_Y; l++)
                       {
                         if(m_GemsPlayfield[x][y].color == m_GemsPlayfield[k][l].color)
                           m_GemsPlayfield[k][l].bRemove = true;
@@ -545,9 +557,9 @@ public:
               // bomb exploded and remove vicinity
               // maybe another bomb will explode or a rainbow will be triggered
               
-              for (int x = 0; x < 8; x++)
+              for (int x = 0; x < BOARD_X; x++)
               {
-                for (int y = 0; y < 8; y++)
+                for (int y = 0; y < BOARD_Y; y++)
                 {
                   if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::BOMB && m_GemsPlayfield[x][y].bRemove)
                   {
@@ -555,15 +567,15 @@ public:
                     {
                       for (int j = -1; j < 2; j++)
                       {
-                        int m = std::min(std::max(i + x, 0), 7);
-                        int n = std::min(std::max(j + y, 0), 7);
+                        int m = std::min(std::max(i + x, 0), BOARD_X-1);
+                        int n = std::min(std::max(j + y, 0), BOARD_Y-1);
                         m_GemsPlayfield[m][n].bRemove = true;
                         
                         if (m_GemsPlayfield[m][n].type == sGem::GEMTYPE::RAINBOW && m_GemsPlayfield[m][n].bRemove)
                         {
-                          for (int k = 0; k < 8; k++)
+                          for (int k = 0; k < BOARD_X; k++)
                           {
-                            for (int l = 0; l < 8; l++)
+                            for (int l = 0; l < BOARD_Y; l++)
                             {
                               if(m_GemsPlayfield[m][n].color == m_GemsPlayfield[k][l].color)
                                 m_GemsPlayfield[k][l].bRemove = true;
@@ -602,15 +614,16 @@ public:
                 }
                 else
                 {
-                  for (int x = 0; x < 8; x++)
+                  for (int x = 0; x < BOARD_X; x++)
                   {
-                    for (int y = 0; y < 8; y++)
+                    for (int y = 0; y < BOARD_Y; y++)
                     {
                       if (m_GemsPlayfield[x][y].bRemove)
                       {
                         m_GemsPlayfield[x][y].bExist = false;
                         m_GemsPlayfield[x][y].type == sGem::GEMTYPE::GEM;
-                        boom(x * 52 + 26, y * 52 + 26, 15, m_GemsPlayfield[x][y].color);
+                        float offset_X = 0.5f*(SCREENSIZE_X-BOARD_X*TILESIZE_X);
+                        boom(offset_X + x * TILESIZE_X + TILESIZE_X/2, y * TILESIZE_Y + TILESIZE_Y/2, 15, m_GemsPlayfield[x][y].color);
                         nTotalGems--;
                       }
                     }
@@ -626,9 +639,9 @@ public:
                 break;
               case STATE_COMPRESS:
                 
-                for (int y = 6; y >= 0; y--)
+                for (int y = BOARD_Y-2; y >= 0; y--)
                 {
-                  for (int x = 0; x < 8; x++)
+                  for (int x = 0; x < BOARD_X; x++)
                   {
                     if (m_GemsPlayfield[x][y].bExist && !m_GemsPlayfield[x][y + 1].bExist)
                       std::swap(m_GemsPlayfield[x][y], m_GemsPlayfield[x][y + 1]);
@@ -640,7 +653,7 @@ public:
                 break;
                 
               case STATE_NEWGEMS:
-                for (int x = 0; x < 8; x++)
+                for (int x = 0; x < BOARD_X; x++)
                 {
                   if (!m_GemsPlayfield[x][0].bExist)
                   {
@@ -684,16 +697,23 @@ public:
     
     Clear(olc::VERY_DARK_BLUE);
     
-    DrawDecal({0.0f, 0.0f}, gfxTiles.Decal());
+    //0.5f*(SCREENSIZE_X-BOARD_X*TILESIZE_X);
+    
+    float offset_X = 0.5f*(SCREENSIZE_X-BOARD_X*TILESIZE_X);
+    
+    DrawDecal({offset_X, 0.0f}, gfxTiles.Decal());
+    
+    //DrawDecal({0.0f, 0.0f}, gfxTiles.Decal());
     
     // draw the playfield
-    for (int x = 0; x < 8; x++)
+    for (int x = 0; x < BOARD_X; x++)
     {
-      for (int y = 0; y < 8; y++)
+      for (int y = 0; y < BOARD_Y; y++)
       {
         if (m_GemsPlayfield[x][y].bExist)
         {  
-          m_GemsPlayfield[x][y].sprite.Draw(fElapsedTime, {x*52.0f, y*52.0f}, olc::Sprite::Flip::NONE, m_GemsPlayfield[x][y].bRemove ? olc::DARK_GREY : olc::WHITE); // draws the sprite at location x, y and animates it
+          float offset_X = 0.5f*(SCREENSIZE_X-BOARD_X*TILESIZE_X);
+          m_GemsPlayfield[x][y].sprite.Draw(fElapsedTime, {offset_X + x*float(TILESIZE_X), y*float(TILESIZE_Y)}, olc::Sprite::Flip::NONE, m_GemsPlayfield[x][y].bRemove ? olc::DARK_GREY : olc::WHITE); // draws the sprite at location x, y and animates it
         }
       }
     }
@@ -722,7 +742,7 @@ public:
 int main()
 {
   JuwelsGame demo;
-  if (demo.Construct(640, 480, 1, 1))
+  if (demo.Construct(SCREENSIZE_X, SCREENSIZE_Y, 1, 1))
     demo.Start();
   
   return 0;
