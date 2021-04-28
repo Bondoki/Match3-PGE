@@ -38,7 +38,7 @@
  * + Score counter
  * + Animation of swap
  * + Cursor sprite
- * + check for simultaneous 3 row and 3 column
+ * + check for simultaneous 3 row and 3 column -> removeH and removeV
  * 
  * License: This piece of code is licensed to OLC-3 according to (see below)
  * https://github.com/OneLoneCoder/olcPixelGameEngine/blob/master/LICENCE.md
@@ -75,6 +75,8 @@
 
 #include <stack>          // std::stack
 #include <map>
+#include <set>
+#include <utility>
 
 #define BOARD_X 8
 #define BOARD_Y 8
@@ -102,7 +104,9 @@ public:
     uint8_t colorbitmask; // 0 NONE; 1 BLUE; 2 GREEN; 4 ORANGE; 8 PURPLE; 16 RED; 32 WHITE; 64 YELLOW; 127 ANYCOLOR
     uint8_t animation_mode; // 0 NONE; 1 ROTATING; 2 TILTING
     bool bExist;
-    bool bRemove;
+    //bool bRemove;
+    bool bRemoveH; // Horizontal
+    bool bRemoveV; // Vertical
     olc::AnimatedSprite sprite; 
     
     enum GEMTYPE
@@ -119,10 +123,46 @@ public:
     STATE_SWAP,
     STATE_CHECK,
     STATE_CHECK_BOMB,
-    STATE_ERASE, 
+    STATE_ERASE,
+    STATE_ADD_SPECIAL_GEMS,
     STATE_COMPRESS,
     STATE_NEWGEMS,
   } nState, nNextState;
+  
+  
+  template <typename T>
+  struct unorderLess
+  {
+    bool operator () (const std::pair<T, T>& lhs, const std::pair<T, T>& rhs) const
+    {
+      const auto lhs_order = lhs.first + lhs.second * BOARD_X;
+      const auto rhs_order = rhs.first + rhs.second * BOARD_X;
+      
+      return lhs_order < rhs_order;
+    }
+  };
+  
+  // container of position to remove
+  std::set<std::pair<int, int>, unorderLess<int>> sRemoveGemSet;
+  
+  // container of position to remove
+  std::set<std::pair<int, int>, unorderLess<int>> sRemoveBombSet;
+  
+  // container of position to remove
+  std::set<std::pair<int, int>, unorderLess<int>> sRemoveRainbowSet;
+  
+  
+  struct sGemPrototyp
+  {
+    uint8_t colorbitmask; // 0 NONE; 1 BLUE; 2 GREEN; 4 ORANGE; 8 PURPLE; 16 RED; 32 WHITE; 64 YELLOW; 127 ANYCOLOR
+    int posX;
+    int posY;
+    
+    sGem::GEMTYPE type;
+  };
+  
+  // container for adding special gems
+  std::vector<sGemPrototyp> sInsertGemVector;
   
   // define sprite in your PGE program for drawing gems/bombs/rainbow
   std::vector<olc::AnimatedSprite> m_GemSprite;
@@ -279,6 +319,10 @@ public:
     }
     
     
+    // reset number of gems on board
+    nTotalGems = 0;
+    
+    
     // fill the playfield
     for (int x = 0; x < BOARD_X; x++)
     {
@@ -288,11 +332,62 @@ public:
         m_GemsPlayfield[x][y].colorbitmask = 1 << (rand() % 7);
         m_GemsPlayfield[x][y].animation_mode = 0;
         m_GemsPlayfield[x][y].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[x][y].colorbitmask)];
-        m_GemsPlayfield[x][y].bExist = false;
-        m_GemsPlayfield[x][y].bRemove = false;
+        m_GemsPlayfield[x][y].sprite.SetState("gem idle");
+        m_GemsPlayfield[x][y].bExist = false;//true;
+        //m_GemsPlayfield[x][y].bRemove = false;
+        m_GemsPlayfield[x][y].bRemoveH = false;
+        m_GemsPlayfield[x][y].bRemoveV = false;
         m_GemsPlayfield[x][y].type = sGem::GEMTYPE::GEM;
+       // nTotalGems++;
       }
     }
+    /*
+    // 1 BLUE; 2 GREEN; 4 ORANGE; 8 PURPLE; 16 RED; 32 WHITE; 64 YELLOW; 127 ANYCOLOR
+    m_GemsPlayfield[6][7].colorbitmask = 1 << (0 % 7);
+    m_GemsPlayfield[6][7].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[6][7].colorbitmask)];
+    
+    m_GemsPlayfield[3][4].colorbitmask = 1 << (0 % 7);
+    m_GemsPlayfield[3][4].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[3][4].colorbitmask)];
+    
+    m_GemsPlayfield[3][2].colorbitmask = 8;
+    m_GemsPlayfield[3][2].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[3][2].colorbitmask)];
+    
+    m_GemsPlayfield[1][1].colorbitmask = 32;//127;
+    m_GemsPlayfield[1][1].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[1][1].colorbitmask)];
+    //m_GemsPlayfield[2][1].type = sGem::GEMTYPE::RAINBOW;
+    //m_GemsPlayfield[2][1].sprite.SetState("rainbow idle");
+    
+    m_GemsPlayfield[0][0].colorbitmask = 1;
+    m_GemsPlayfield[0][0].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[0][0].colorbitmask)];
+    
+    
+    m_GemsPlayfield[0][1].colorbitmask = 32;
+    m_GemsPlayfield[0][1].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[0][1].colorbitmask)];
+    
+    m_GemsPlayfield[2][0].colorbitmask = 127;
+    m_GemsPlayfield[2][0].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[2][0].colorbitmask)];
+    
+    
+    for (int x = 0; x < 2; x++)
+    {
+    m_GemsPlayfield[x][2].colorbitmask = 1 << (1 % 7);
+    m_GemsPlayfield[x][2].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[x][2].colorbitmask)];
+    
+    m_GemsPlayfield[2][3+x].colorbitmask = 1 << (1 % 7);
+    m_GemsPlayfield[2][3+x].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[2][3+x].colorbitmask)];
+    
+    }
+    
+    m_GemsPlayfield[1][2].colorbitmask = 16;//127;
+    m_GemsPlayfield[1][2].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[1][2].colorbitmask)];
+    */
+    
+    sRemoveGemSet.clear();
+    sRemoveBombSet.clear();
+    sRemoveRainbowSet.clear();
+    sInsertGemVector.clear();
+    
+    nState = STATE_USER;
     
     return true;
   }
@@ -463,7 +558,7 @@ public:
             {
               for (int y = 0; y < BOARD_Y; y++)
               {
-                if (!m_GemsPlayfield[x][y].bRemove)
+                if (!m_GemsPlayfield[x][y].bRemoveH)
                 {
                   bool bPlaceBomb = false;
                   
@@ -474,6 +569,8 @@ public:
                   // Check Horizontally
                   int nChain = 1;
                   
+                  //check for ANYCOLOR-Gem placement
+                  
                   uint8_t bAnyColor = (m_GemsPlayfield[x][y].colorbitmask != 127) ? m_GemsPlayfield[x][y].colorbitmask : 128;
                   while (((nChain + x) < BOARD_X) && ((bAnyColor & m_GemsPlayfield[x + nChain][y].colorbitmask) == 0) && ((m_GemsPlayfield[x+ nChain][y].colorbitmask != 127)) ) { bAnyColor |= m_GemsPlayfield[x + nChain][y].colorbitmask; nChain++; }
                   
@@ -482,13 +579,16 @@ public:
                     
                     while (nChain > 0)
                     {
-                      m_GemsPlayfield[x + nChain - 1][y].bRemove = true;
+                      m_GemsPlayfield[x + nChain - 1][y].bRemoveH = true;
+                      
+                      sRemoveGemSet.insert(std::make_pair(x + nChain - 1, y));
                       
                       score_removed_tiles++;
                       
                       if (m_GemsPlayfield[x + nChain - 1][y].type == sGem::GEMTYPE::BOMB)
                       {                       
-                        m_GemsPlayfield[x + nChain - 1][y].bRemove = true;
+                        m_GemsPlayfield[x + nChain - 1][y].bRemoveH = true;
+                        sRemoveGemSet.insert(std::make_pair(x + nChain - 1, y));
                         
                         bBombToRemove = true;
                       }
@@ -496,7 +596,8 @@ public:
                       if (m_GemsPlayfield[x + nChain - 1][y].type == sGem::GEMTYPE::RAINBOW)
                       {
                         
-                        m_GemsPlayfield[x + nChain - 1][y].bRemove = true;
+                        m_GemsPlayfield[x + nChain - 1][y].bRemoveH = true;
+                        sRemoveGemSet.insert(std::make_pair(x + nChain - 1, y));
                         
                         bRainbowToRemove = true;
                       }
@@ -508,13 +609,18 @@ public:
                       
                     }
                     
-                    m_GemsPlayfield[x][y].colorbitmask = 127;
-                    m_GemsPlayfield[x][y].bRemove = false;
-                    m_GemsPlayfield[x][y].type = sGem::GEMTYPE::GEM;
-                    m_GemsPlayfield[x][y].sprite.SetState("gem idle");
-                    m_GemsPlayfield[x][y].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[x][y].colorbitmask)];
+//                     m_GemsPlayfield[x][y].colorbitmask = 127;
+//                     m_GemsPlayfield[x][y].bRemoveH = false;
+//                     m_GemsPlayfield[x][y].type = sGem::GEMTYPE::GEM;
+//                     m_GemsPlayfield[x][y].sprite.SetState("gem idle");
+//                     m_GemsPlayfield[x][y].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[x][y].colorbitmask)];
+                    
+                    sInsertGemVector.push_back({127, x+3,y, sGem::GEMTYPE::GEM});
+    
                   }
                   
+                  uint8_t highestcolorbitmask = 0;
+    
                   nChain = 1;
                   //while (((nChain + x) < BOARD_X) && (m_GemsPlayfield[x][y].color == m_GemsPlayfield[x + nChain][y].color) ) nChain++;
                   if(((m_GemsPlayfield[x][y].colorbitmask != 127)))
@@ -539,21 +645,38 @@ public:
                     
                     while (nChain > 0)
                     {
-                      m_GemsPlayfield[x + nChain - 1][y].bRemove = true;
+                      // AnyColor gem still remains for check
+                      if(m_GemsPlayfield[x + nChain - 1][y].colorbitmask != 127)
+                        m_GemsPlayfield[x + nChain - 1][y].bRemoveH = true;
+                      
+                      sRemoveGemSet.insert(std::make_pair(x + nChain - 1, y));
+                      
+                      highestcolorbitmask |= m_GemsPlayfield[x + nChain - 1][y].colorbitmask;
                       
                       score_removed_tiles++;
                       
                       if (m_GemsPlayfield[x + nChain - 1][y].type == sGem::GEMTYPE::BOMB)
-                      {                       
-                        m_GemsPlayfield[x + nChain - 1][y].bRemove = true;
+                      {
+                        // AnyColor gem still remains for check
+                        if(m_GemsPlayfield[x + nChain - 1][y].colorbitmask != 127)
+                          m_GemsPlayfield[x + nChain - 1][y].bRemoveH = true;
+                        
+                        sRemoveGemSet.insert(std::make_pair(x + nChain - 1, y));
+                        
+                        sRemoveBombSet.insert(std::make_pair(x + nChain - 1, y));
                         
                         bBombToRemove = true;
                       }
                       
                       if (m_GemsPlayfield[x + nChain - 1][y].type == sGem::GEMTYPE::RAINBOW)
                       {
+                        // AnyColor gem still remains for check
+                        if(m_GemsPlayfield[x + nChain - 1][y].colorbitmask != 127)
+                          m_GemsPlayfield[x + nChain - 1][y].bRemoveH = true;
                         
-                        m_GemsPlayfield[x + nChain - 1][y].bRemove = true;
+                        sRemoveGemSet.insert(std::make_pair(x + nChain - 1, y));
+                        
+                        sRemoveRainbowSet.insert(std::make_pair(x + nChain - 1, y));
                         
                         bRainbowToRemove = true;
                       }
@@ -565,10 +688,40 @@ public:
                     }
                   }
                   
+                  if (bPlaceBomb)
+                  {
+                    m_GemsPlayfield[x][y].bRemoveH = true; //highestcolorbitmask != 127 ? true : false; //false;
+                    m_GemsPlayfield[x][y].type = sGem::GEMTYPE::BOMB;
+                    
+                    m_GemsPlayfield[x][y].sprite.SetState("bomb idle");
+                    
+                    sInsertGemVector.push_back({highestcolorbitmask, x,y, sGem::GEMTYPE::BOMB});
+                    
+                  }
+                  
+                  if (bPlaceRainbow)
+                  {
+                    m_GemsPlayfield[x+2][y].bRemoveH = true; //highestcolorbitmask != 127 ? true : false;
+                    m_GemsPlayfield[x+2][y].type = sGem::GEMTYPE::RAINBOW;
+                    
+                    m_GemsPlayfield[x+2][y].sprite.SetState("rainbow idle");
+                    
+                    sInsertGemVector.push_back({highestcolorbitmask, x+2,y, sGem::GEMTYPE::RAINBOW});
+                    
+                  }
+                  
+                }
+                
+                if (!m_GemsPlayfield[x][y].bRemoveV)
+                {
+                  bool bPlaceBomb = false;
+                  
+                  bool bPlaceRainbow = false;
+                  
                   
                   // Check Vertically
-                  nChain = 1;
-                  bAnyColor = (m_GemsPlayfield[x][y].colorbitmask != 127) ? m_GemsPlayfield[x][y].colorbitmask : 128;
+                  int nChain = 1;
+                  uint8_t bAnyColor = (m_GemsPlayfield[x][y].colorbitmask != 127) ? m_GemsPlayfield[x][y].colorbitmask : 128;
                   while (((nChain + y) < BOARD_Y) && ((bAnyColor & m_GemsPlayfield[x][y + nChain].colorbitmask) == 0) && (m_GemsPlayfield[x][y + nChain].colorbitmask != 127)  ) { bAnyColor |= m_GemsPlayfield[x][y + nChain].colorbitmask; nChain++; }
                   
                   if(nChain == 7)
@@ -576,13 +729,15 @@ public:
                     
                     while (nChain > 0)
                     {
-                      m_GemsPlayfield[x][y+ nChain - 1].bRemove = true;
+                      m_GemsPlayfield[x][y+ nChain - 1].bRemoveV = true;
+                      sRemoveGemSet.insert(std::make_pair(x, y + nChain - 1));
                       
                       score_removed_tiles++;
                       
                       if (m_GemsPlayfield[x][y+ nChain - 1].type == sGem::GEMTYPE::BOMB)
                       {                       
-                        m_GemsPlayfield[x][y+ nChain - 1].bRemove = true;
+                        m_GemsPlayfield[x][y+ nChain - 1].bRemoveV = true;
+                        sRemoveGemSet.insert(std::make_pair(x, y + nChain - 1));
                         
                         bBombToRemove = true;
                       }
@@ -590,7 +745,8 @@ public:
                       if (m_GemsPlayfield[x][y+ nChain - 1].type == sGem::GEMTYPE::RAINBOW)
                       {
                         
-                        m_GemsPlayfield[x][y+ nChain - 1].bRemove = true;
+                        m_GemsPlayfield[x][y+ nChain - 1].bRemoveV = true;
+                        sRemoveGemSet.insert(std::make_pair(x, y + nChain - 1));
                         
                         bRainbowToRemove = true;
                       }
@@ -602,11 +758,14 @@ public:
                       
                     }
                     
-                    m_GemsPlayfield[x][y].colorbitmask = 127;
-                    m_GemsPlayfield[x][y].bRemove = false;
-                    m_GemsPlayfield[x][y].type = sGem::GEMTYPE::GEM;
-                    m_GemsPlayfield[x][y].sprite.SetState("gem idle");
-                    m_GemsPlayfield[x][y].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[x][y].colorbitmask)];
+//                     m_GemsPlayfield[x][y+3].colorbitmask = 127;
+//                     //m_GemsPlayfield[x][y].bRemoveV = false;
+//                     m_GemsPlayfield[x][y+3].type = sGem::GEMTYPE::GEM;
+//                     m_GemsPlayfield[x][y+3].sprite.SetState("gem idle");
+//                     m_GemsPlayfield[x][y+3].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[x][y].colorbitmask)];
+//                     
+                    sInsertGemVector.push_back({127, x,y+3, sGem::GEMTYPE::GEM});
+                    
                   }
                   
                   
@@ -631,6 +790,8 @@ public:
                     }
                   }
                   
+                  uint8_t highestcolorbitmask = 0;
+    
                   
                   if (nChain >= 3)
                   {
@@ -641,21 +802,40 @@ public:
                     
                     while (nChain > 0)
                     {
-                      m_GemsPlayfield[x][y + nChain - 1].bRemove = true;
+                      // AnyColor gem still remains for check
+                      if(m_GemsPlayfield[x][y + nChain - 1].colorbitmask != 127)
+                        m_GemsPlayfield[x][y + nChain - 1].bRemoveV = true;
+                      
+                      sRemoveGemSet.insert(std::make_pair(x, y + nChain - 1));
+                      
+                      highestcolorbitmask |= m_GemsPlayfield[x][y + nChain - 1].colorbitmask;
+                      
                       
                       score_removed_tiles++;
                       
                       
                       if (m_GemsPlayfield[x][y + nChain - 1].type == sGem::GEMTYPE::BOMB)
-                      {             
-                        m_GemsPlayfield[x][y + nChain - 1].bRemove = true;
+                      {  
+                        // AnyColor gem still remains for check
+                        if(m_GemsPlayfield[x][y + nChain - 1].colorbitmask != 127)
+                          m_GemsPlayfield[x][y + nChain - 1].bRemoveV = true;
+                        
+                        sRemoveGemSet.insert(std::make_pair(x, y + nChain - 1));
+                        
+                        sRemoveBombSet.insert(std::make_pair(x, y + nChain - 1));
                         
                         bBombToRemove = true;
                       }
                       
                       if (m_GemsPlayfield[x][y + nChain - 1].type == sGem::GEMTYPE::RAINBOW)
                       {
-                        m_GemsPlayfield[x][y + nChain - 1].bRemove = true;
+                        // AnyColor gem still remains for check
+                        if(m_GemsPlayfield[x][y + nChain - 1].colorbitmask != 127)
+                          m_GemsPlayfield[x][y + nChain - 1].bRemoveV = true;
+                        
+                        sRemoveGemSet.insert(std::make_pair(x, y + nChain - 1));
+                        
+                        sRemoveRainbowSet.insert(std::make_pair(x, y + nChain - 1));
                         
                         bRainbowToRemove = true;
                       }
@@ -668,19 +848,23 @@ public:
                   
                   if (bPlaceBomb)
                   {
-                    m_GemsPlayfield[x][y].bRemove = false;
+                    m_GemsPlayfield[x][y].bRemoveV = true; //false;
                     m_GemsPlayfield[x][y].type = sGem::GEMTYPE::BOMB;
                     
                     m_GemsPlayfield[x][y].sprite.SetState("bomb idle");
+                    
+                    sInsertGemVector.push_back({highestcolorbitmask, x,y, sGem::GEMTYPE::BOMB});
                     
                   }
                   
                   if (bPlaceRainbow)
                   {
-                    m_GemsPlayfield[x][y].bRemove = false;
-                    m_GemsPlayfield[x][y].type = sGem::GEMTYPE::RAINBOW;
+                    m_GemsPlayfield[x][y+2].bRemoveV = true; // false;
+                    m_GemsPlayfield[x][y+2].type = sGem::GEMTYPE::RAINBOW;
                     
-                    m_GemsPlayfield[x][y].sprite.SetState("rainbow idle");
+                    m_GemsPlayfield[x][y+2].sprite.SetState("rainbow idle");
+                    
+                    sInsertGemVector.push_back({highestcolorbitmask, x,y+2, sGem::GEMTYPE::RAINBOW});
                     
                   }
                   
@@ -691,67 +875,73 @@ public:
             
             
             
-            if(bBombToRemove == true)
-            {
-              for (int x = 0; x < BOARD_X; x++)
-              {
-                for (int y = 0; y < BOARD_Y; y++)
-                {
-                  if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::BOMB && m_GemsPlayfield[x][y].bRemove)
-                  {
-                    for (int i = -1; i < 2; i++)
-                    {
-                      for (int j = -1; j < 2; j++)
-                      {
-                        int m = std::min(std::max(i + x, 0), BOARD_X-1);
-                        int n = std::min(std::max(j + y, 0), BOARD_Y-1);
-                        m_GemsPlayfield[m][n].bRemove = true;
-                        
-                        score_removed_tiles++;
-                      }
-                    }
-                  }
-                }
-              }
-              
-              nNextState = STATE_CHECK_BOMB;
-            }
-            
-            if(bRainbowToRemove == true)
-            {
-              for (int x = 0; x < BOARD_X; x++)
-              {
-                for (int y = 0; y < BOARD_Y; y++)
-                {
-                  if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::RAINBOW && m_GemsPlayfield[x][y].bRemove)
-                  {
-                    for (int k = 0; k < BOARD_X; k++)
-                    {
-                      for (int l = 0; l < BOARD_Y; l++)
-                      {
-                        if(m_GemsPlayfield[x][y].colorbitmask & m_GemsPlayfield[k][l].colorbitmask)
-                        { 
-                          m_GemsPlayfield[k][l].bRemove = true;
-                          score_removed_tiles++;
-                        }
-                      }
-                    }
-                    
-                    
-                  }
-                }
-              }
-              
-              nNextState = STATE_CHECK_BOMB;
-            }
-            
-            if((bBombToRemove != true) && (bRainbowToRemove != true))
-            {
-              nNextState = STATE_ERASE;
-            }
+//             if(bBombToRemove == true)
+//             {
+//               for (int x = 0; x < BOARD_X; x++)
+//               {
+//                 for (int y = 0; y < BOARD_Y; y++)
+//                 {
+//                   if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::BOMB && (m_GemsPlayfield[x][y].bRemoveH || m_GemsPlayfield[x][y].bRemoveV) )
+//                   {
+//                     for (int i = -1; i < 2; i++)
+//                     {
+//                       for (int j = -1; j < 2; j++)
+//                       {
+//                         int m = std::min(std::max(i + x, 0), BOARD_X-1);
+//                         int n = std::min(std::max(j + y, 0), BOARD_Y-1);
+//                         m_GemsPlayfield[m][n].bRemoveH = true;
+//                         m_GemsPlayfield[m][n].bRemoveV = true;
+//                         sRemoveGemSet.insert(std::make_pair(m, n));
+//                         
+//                         score_removed_tiles++;
+//                       }
+//                     }
+//                   }
+//                 }
+//               }
+//               
+//               nNextState = STATE_CHECK_BOMB;
+//             }
+//             
+//             if(bRainbowToRemove == true)
+//             {
+//               for (int x = 0; x < BOARD_X; x++)
+//               {
+//                 for (int y = 0; y < BOARD_Y; y++)
+//                 {
+//                   if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::RAINBOW && (m_GemsPlayfield[x][y].bRemoveH || m_GemsPlayfield[x][y].bRemoveV) )
+//                   {
+//                     for (int k = 0; k < BOARD_X; k++)
+//                     {
+//                       for (int l = 0; l < BOARD_Y; l++)
+//                       {
+//                         if(m_GemsPlayfield[x][y].colorbitmask & m_GemsPlayfield[k][l].colorbitmask)
+//                         { 
+//                           m_GemsPlayfield[k][l].bRemoveH = true;
+//                           m_GemsPlayfield[k][l].bRemoveV = true;
+//                           sRemoveGemSet.insert(std::make_pair(k, l));
+//                           score_removed_tiles++;
+//                         }
+//                       }
+//                     }
+//                     
+//                     
+//                   }
+//                 }
+//               }
+//               
+//               nNextState = STATE_CHECK_BOMB;
+//             }
+//             
+//             if((bBombToRemove != true) && (bRainbowToRemove != true))
+//             {
+//               nNextState = STATE_ERASE;
+//             }
             
             if (bGemsToRemove)
               fDelayTime = 0.75f;
+            
+            nNextState = STATE_CHECK_BOMB;
             
             score += std::pow(score_combo,2)*score_removed_tiles*10;
             
@@ -767,51 +957,139 @@ public:
               // bomb exploded and remove vicinity
               // maybe another bomb will explode or a rainbow will be triggered
               
-              for (int x = 0; x < BOARD_X; x++)
               {
-                for (int y = 0; y < BOARD_Y; y++)
-                {
-                  if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::BOMB && m_GemsPlayfield[x][y].bRemove)
-                  {
+                std::set<std::pair<int, int>, unorderLess<int>> tmpBombSet(sRemoveBombSet);
+                std::set<std::pair<int, int>, unorderLess<int>> tmpRainbowSet(sRemoveRainbowSet);
+                
+                sRemoveBombSet.clear();
+                sRemoveRainbowSet.clear();
+              
+                for (auto const &posGem : tmpBombSet) {
+                    bBombToRemove = true;
+                    int x = posGem.first;
+                    int y = posGem.second;
+                    
                     for (int i = -1; i < 2; i++)
                     {
                       for (int j = -1; j < 2; j++)
                       {
                         int m = std::min(std::max(i + x, 0), BOARD_X-1);
                         int n = std::min(std::max(j + y, 0), BOARD_Y-1);
-                        m_GemsPlayfield[m][n].bRemove = true;
-                        score_removed_tiles++;
                         
-                        if (m_GemsPlayfield[m][n].type == sGem::GEMTYPE::RAINBOW && m_GemsPlayfield[m][n].bRemove)
-                        {
-                          for (int k = 0; k < BOARD_X; k++)
+                        //if((m != x) && (n != y))
+                        { 
+                          if ((m_GemsPlayfield[m][n].type == sGem::GEMTYPE::BOMB) && (sRemoveGemSet.find(std::make_pair(m, n)) == sRemoveGemSet.end() ))
                           {
-                            for (int l = 0; l < BOARD_Y; l++)
-                            {
-                              if(m_GemsPlayfield[m][n].colorbitmask & m_GemsPlayfield[k][l].colorbitmask)
-                              {
-                                m_GemsPlayfield[k][l].bRemove = true;
-                                score_removed_tiles++;
-                              }
-                            }
+                            sRemoveBombSet.insert(std::make_pair(m, n));
                           }
-                          
-                          m_GemsPlayfield[m][n].type = sGem::GEMTYPE::GEM;
                         }
                         
+                        if ((m_GemsPlayfield[m][n].type == sGem::GEMTYPE::RAINBOW) && (sRemoveGemSet.find(std::make_pair(m, n)) == sRemoveGemSet.end() ))
+                        {
+                          sRemoveRainbowSet.insert(std::make_pair(m, n));
+                        }
+                        
+                        m_GemsPlayfield[m][n].bRemoveH = true;
+                        m_GemsPlayfield[m][n].bRemoveV = true;
+                        sRemoveGemSet.insert(std::make_pair(m,n));
+                        score_removed_tiles++;
+                        bGemsToRemove = true;
                       }
                     }
-                    m_GemsPlayfield[x][y].type = sGem::GEMTYPE::GEM;
-                    bBombToRemove = true;
+                }
+                
+                for (auto const &posGem : tmpRainbowSet) {
+                  bBombToRemove = true;
+                  int x = posGem.first;
+                  int y = posGem.second;
+                  
+                  for (int k = 0; k < BOARD_X; k++)
+                  {
+                    for (int l = 0; l < BOARD_Y; l++)
+                    {
+                      if(m_GemsPlayfield[x][y].colorbitmask & m_GemsPlayfield[k][l].colorbitmask)
+                      {
+                        
+                        
+                        
+                        if ((m_GemsPlayfield[k][l].type == sGem::GEMTYPE::BOMB) && (sRemoveGemSet.find(std::make_pair(k, l)) == sRemoveGemSet.end() ))
+                          sRemoveBombSet.insert(std::make_pair(k, l));
+                        
+                        //if((k != x) && (l !=y))
+                        if ((m_GemsPlayfield[k][l].type == sGem::GEMTYPE::RAINBOW) && (sRemoveGemSet.find(std::make_pair(k, l)) == sRemoveGemSet.end())) 
+                          sRemoveRainbowSet.insert(std::make_pair(k, l));
+                        
+                        m_GemsPlayfield[k][l].bRemoveH = true;
+                        m_GemsPlayfield[k][l].bRemoveV = true;
+                        sRemoveGemSet.insert(std::make_pair(k,l));
+                        
+                        score_removed_tiles++;
+                        
+                        bGemsToRemove = true;
+                      }
+                    }
                   }
                 }
+                    
               }
               
+              // bomb exploded and remove vicinity
+              // maybe another bomb will explode or a rainbow will be triggered
+              
+//               for (int x = 0; x < BOARD_X; x++)
+//               {
+//                 for (int y = 0; y < BOARD_Y; y++)
+//                 {
+//                   if (m_GemsPlayfield[x][y].type == sGem::GEMTYPE::BOMB && (m_GemsPlayfield[x][y].bRemoveH || m_GemsPlayfield[x][y].bRemoveV) )
+//                   {
+//                     for (int i = -1; i < 2; i++)
+//                     {
+//                       for (int j = -1; j < 2; j++)
+//                       {
+//                         int m = std::min(std::max(i + x, 0), BOARD_X-1);
+//                         int n = std::min(std::max(j + y, 0), BOARD_Y-1);
+//                         m_GemsPlayfield[m][n].bRemoveH = true;
+//                         m_GemsPlayfield[m][n].bRemoveV = true;
+//                         sRemoveGemSet.insert(std::make_pair(m,n));
+//                         score_removed_tiles++;
+//                         
+//                         if (m_GemsPlayfield[m][n].type == sGem::GEMTYPE::RAINBOW && (m_GemsPlayfield[x][y].bRemoveH || m_GemsPlayfield[x][y].bRemoveV) )
+//                         {
+//                           for (int k = 0; k < BOARD_X; k++)
+//                           {
+//                             for (int l = 0; l < BOARD_Y; l++)
+//                             {
+//                               if(m_GemsPlayfield[m][n].colorbitmask & m_GemsPlayfield[k][l].colorbitmask)
+//                               {
+//                                 m_GemsPlayfield[k][l].bRemoveH = true;
+//                                 m_GemsPlayfield[k][l].bRemoveV = true;
+//                                 sRemoveGemSet.insert(std::make_pair(k,l));
+//                                 score_removed_tiles++;
+//                               }
+//                             }
+//                           }
+//                           
+//                           m_GemsPlayfield[m][n].type = sGem::GEMTYPE::GEM;
+//                         }
+//                         
+//                       }
+//                     }
+//                     m_GemsPlayfield[x][y].type = sGem::GEMTYPE::GEM;
+//                     bBombToRemove = true;
+//                   }
+//                 }
+//               }
+              
               //maybe this triggers another bomb
-              if(bBombToRemove)
-                nNextState = STATE_CHECK_BOMB;
-              else
+              //if(bBombToRemove)
+              if(sRemoveBombSet.empty() && sRemoveRainbowSet.empty())
+              {
                 nNextState = STATE_ERASE;
+              }
+              else
+              {
+                nNextState = STATE_CHECK_BOMB;
+              }
               
               fDelayTime = 0.75f;
               
@@ -832,28 +1110,77 @@ public:
                 }
                 else
                 {
-                  for (int x = 0; x < BOARD_X; x++)
-                  {
-                    for (int y = 0; y < BOARD_Y; y++)
-                    {
-                      if (m_GemsPlayfield[x][y].bRemove)
-                      {
-                        m_GemsPlayfield[x][y].bExist = false;
-                        m_GemsPlayfield[x][y].type == sGem::GEMTYPE::GEM;
-                        float offset_X = 0.5f*(SCREENSIZE_X-BOARD_X*TILESIZE_X);
-                        boom(offset_X + x * TILESIZE_X + TILESIZE_X/2, y * TILESIZE_Y + TILESIZE_Y/2, 15, colormap.at(m_GemsPlayfield[x][y].colorbitmask));
-                        nTotalGems--;
-                      }
-                    }
+//                   for (int x = 0; x < BOARD_X; x++)
+//                   {
+//                     for (int y = 0; y < BOARD_Y; y++)
+//                     {
+//                       if(m_GemsPlayfield[x][y].bRemoveH || m_GemsPlayfield[x][y].bRemoveV)
+//                       {
+//                         m_GemsPlayfield[x][y].bExist = false;
+//                         m_GemsPlayfield[x][y].type == sGem::GEMTYPE::GEM;
+//                         float offset_X = 0.5f*(SCREENSIZE_X-BOARD_X*TILESIZE_X);
+//                         boom(offset_X + x * TILESIZE_X + TILESIZE_X/2, y * TILESIZE_Y + TILESIZE_Y/2, 15, colormap.at(m_GemsPlayfield[x][y].colorbitmask));
+//                         nTotalGems--;
+//                       }
+//                       
+//                     }
+//                   }
+                  
+                  for (auto const &posGem : sRemoveGemSet) {
+                    int x = posGem.first;
+                    int y = posGem.second;
+                    
+                    m_GemsPlayfield[x][y].bExist = false;
+                    m_GemsPlayfield[x][y].type == sGem::GEMTYPE::GEM;
+                    float offset_X = 0.5f*(SCREENSIZE_X-BOARD_X*TILESIZE_X);
+                    boom(offset_X + x * TILESIZE_X + TILESIZE_X/2, y * TILESIZE_Y + TILESIZE_Y/2, 15, colormap.at(m_GemsPlayfield[x][y].colorbitmask));
+                    nTotalGems--;
                   }
+                  
+                  sRemoveGemSet.clear();
+                  
+                  
                   
                   bGemsToRemove = false;
                   
-                  if(bBombToRemove)
-                    nNextState = STATE_CHECK_BOMB;
-                  else
-                    nNextState = STATE_COMPRESS;
+                  //if(bBombToRemove)
+                  //  nNextState = STATE_CHECK_BOMB;
+                  //else
+                    nNextState = STATE_ADD_SPECIAL_GEMS; //STATE_COMPRESS;
                 }
+                break;
+                
+              case STATE_ADD_SPECIAL_GEMS:
+                
+                // create new gems
+                for (auto const &insertGems : sInsertGemVector) // access by const reference
+                {
+                  uint8_t color= insertGems.colorbitmask;
+                  int x = insertGems.posX;
+                  int y = insertGems.posY;
+                  sGem::GEMTYPE type = insertGems.type;
+                  
+                  m_GemsPlayfield[x][y].colorbitmask = color;
+                  m_GemsPlayfield[x][y].animation_mode = 1;
+                  m_GemsPlayfield[x][y].sprite = m_GemSprite[colormap.at(color)];
+                  m_GemsPlayfield[x][y].bExist = true;
+                  m_GemsPlayfield[x][y].bRemoveH = false;
+                  m_GemsPlayfield[x][y].bRemoveV = false;
+                  m_GemsPlayfield[x][y].type = type;
+                  
+                  if (m_GemsPlayfield[x][y].type ==  sGem::GEMTYPE::GEM)
+                    m_GemsPlayfield[x][y].sprite.SetState("gem idle");
+                  else if (m_GemsPlayfield[x][y].type ==  sGem::GEMTYPE::BOMB)
+                    m_GemsPlayfield[x][y].sprite.SetState("bomb idle");
+                  else if (m_GemsPlayfield[x][y].type ==  sGem::GEMTYPE::RAINBOW)
+                    m_GemsPlayfield[x][y].sprite.SetState("rainbow idle");
+                  
+                  nTotalGems++;
+                }
+                
+                sInsertGemVector.clear();
+                
+                nNextState = STATE_COMPRESS;
                 break;
               case STATE_COMPRESS:
                 
@@ -877,11 +1204,12 @@ public:
                   {
                     
                     //m_GemsPlayfield[x][0].color = rand() % 7 + 1;
-                    m_GemsPlayfield[x][0].colorbitmask = 1 << (rand() % 7);
+                    m_GemsPlayfield[x][0].colorbitmask = rand() % 64 + 1 > 1 ? 1 << (rand() % 7) : 127;
                     m_GemsPlayfield[x][0].animation_mode = 1;
                     m_GemsPlayfield[x][0].sprite = m_GemSprite[colormap.at(m_GemsPlayfield[x][0].colorbitmask)];
                     m_GemsPlayfield[x][0].bExist = true;
-                    m_GemsPlayfield[x][0].bRemove = false;
+                    m_GemsPlayfield[x][0].bRemoveH = false;
+                    m_GemsPlayfield[x][0].bRemoveV = false;
                     m_GemsPlayfield[x][0].type = rand() % 64 + 1 > 1 ? sGem::GEMTYPE::GEM : rand() % 64 + 1 > 1 ? sGem::GEMTYPE::BOMB : sGem::GEMTYPE::RAINBOW;
                     
                     if (m_GemsPlayfield[x][0].type ==  sGem::GEMTYPE::GEM)
@@ -902,13 +1230,15 @@ public:
                   nNextState = STATE_COMPRESS;
                 }
                 else
+                {
                   nNextState = STATE_CHECK;
-                
+                }
                 
                 break;
       }
       
-      
+      //DrawStringDecal({0,20},std::to_string(nNextState));
+    
       nState = nNextState;
       
     } // End Gameplay
@@ -934,10 +1264,48 @@ public:
         if (m_GemsPlayfield[x][y].bExist)
         {  
           float offset_X = 0.5f*(SCREENSIZE_X-BOARD_X*TILESIZE_X);
-          m_GemsPlayfield[x][y].sprite.Draw(fElapsedTime, {offset_X + x*float(TILESIZE_X), y*float(TILESIZE_Y)}, olc::Sprite::Flip::NONE, m_GemsPlayfield[x][y].bRemove ? olc::DARK_GREY : olc::WHITE); // draws the sprite at location x, y and animates it
+          //m_GemsPlayfield[x][y].sprite.Draw(fElapsedTime, {offset_X + x*float(TILESIZE_X), y*float(TILESIZE_Y)}, olc::Sprite::Flip::NONE, (m_GemsPlayfield[x][y].bRemoveH || m_GemsPlayfield[x][y].bRemoveV) ? olc::DARK_GREY : olc::WHITE); // draws the sprite at location x, y and animates it
+          //m_GemsPlayfield[x][y].sprite.Draw(fElapsedTime, {offset_X + x*float(TILESIZE_X), y*float(TILESIZE_Y)}, olc::Sprite::Flip::NONE, (sRemoveGemSet.find(std::make_pair(x,y)) != sRemoveGemSet.end() ) ? olc::DARK_GREY : olc::WHITE); // draws the sprite at location x, y and animates it
+          
+          bool condition = (sRemoveGemSet.find(std::make_pair(x,y)) != sRemoveGemSet.end());  
+          m_GemsPlayfield[x][y].sprite.Draw(fElapsedTime, {offset_X + x*float(TILESIZE_X), y*float(TILESIZE_Y)}, olc::Sprite::Flip::NONE, condition ? olc::VERY_DARK_GREY : olc::WHITE); // draws the sprite at location x, y and animates it
         }
       }
     }
+    
+    for (auto const &insertGems : sInsertGemVector) // access by const reference
+                {
+                  
+                  
+                  uint8_t color= insertGems.colorbitmask;
+                  int x = insertGems.posX;
+                  int y = insertGems.posY;
+                  sGem::GEMTYPE type = insertGems.type;
+                  
+                  olc::AnimatedSprite tmpGemSprite = m_GemSprite[colormap.at(color)];
+                  /*
+                  m_GemsPlayfield[x][y].colorbitmask = color;
+                  m_GemsPlayfield[x][y].animation_mode = 1;
+                  m_GemsPlayfield[x][y].sprite = m_GemSprite[colormap.at(color)];
+                  m_GemsPlayfield[x][y].bExist = true;
+                  m_GemsPlayfield[x][y].bRemoveH = false;
+                  m_GemsPlayfield[x][y].bRemoveV = false;
+                  m_GemsPlayfield[x][y].type = type;
+                  */
+                  if (type ==  sGem::GEMTYPE::GEM)
+                    tmpGemSprite.SetState("gem idle");
+                  else if (type ==  sGem::GEMTYPE::BOMB)
+                    tmpGemSprite.SetState("bomb idle");
+                  else if (type ==  sGem::GEMTYPE::RAINBOW)
+                    tmpGemSprite.SetState("rainbow idle");
+                  
+                  float offset_X = 0.5f*(SCREENSIZE_X-BOARD_X*TILESIZE_X);
+                  
+                  //int alpha = std::min(std::max(0, (int) 255.0f/fDelayTime*fElapsedTime), 255);
+                  //tmpGemSprite.SetSpriteSize({TILESIZE_X/2, TILESIZE_Y/2});
+                  tmpGemSprite.Draw(fElapsedTime, {offset_X + x*float(TILESIZE_X), y*float(TILESIZE_Y)}, olc::Sprite::Flip::NONE, olc::Pixel(255, 255, 255, 128));// olc::YELLOW); // draws the sprite at location x, y and animates it
+        
+                }
     
     
     // Draw score
