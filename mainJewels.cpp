@@ -46,11 +46,11 @@
  * Other: 63/64
  * 
  * ToDo:
- * + Score counter
+ * + Score counter -> \/ and showing score of removed gem
  * + Animation of swap
  * + Cursor sprite
- * + check for simultaneous 3 row and 3 column -> removeH and removeV
- * + AnyColor gem and power-ups
+ * + check for simultaneous 3 row and 3 column -> \/ removeH and removeV
+ * + AnyColor gem and power-ups -> \/ done
  * 
  * License: This piece of code is licensed to OLC-3 according to (see below)
  * https://github.com/OneLoneCoder/olcPixelGameEngine/blob/master/LICENCE.md
@@ -116,7 +116,6 @@ public:
     uint8_t colorbitmask; // 0 NONE; 1 BLUE; 2 GREEN; 4 ORANGE; 8 PURPLE; 16 RED; 32 WHITE; 64 YELLOW; 127 ANYCOLOR
     uint8_t animation_mode; // 0 NONE; 1 ROTATING; 2 TILTING
     bool bExist;
-    //bool bRemove;
     bool bRemoveH; // Horizontal
     bool bRemoveV; // Vertical
     olc::AnimatedSprite sprite; 
@@ -221,6 +220,20 @@ public:
   int score_combo = 0;
   
   std::stack<uint32_t> stack_score;
+  
+  
+  struct sTextFragment
+  {
+    float x; 
+    float y; 
+    float vx; 
+    float vy;
+    float duration;
+    std::string text;
+  };
+  
+  
+  std::list<sTextFragment> textfragments;
   
 private:
   
@@ -1006,6 +1019,17 @@ public:
                     float offset_X = 0.5f*(SCREENSIZE_X-BOARD_X*TILESIZE_X);
                     boom(offset_X + x * TILESIZE_X + TILESIZE_X/2, y * TILESIZE_Y + TILESIZE_Y/2, 15, colormap.at(m_GemsPlayfield[x][y].colorbitmask));
                     nTotalGems--;
+                    
+                    // text display
+                    auto random_float = [&](float min, float max)
+                    {
+                      return ((float)rand() / (float)RAND_MAX) * (max - min) + min;
+                    };
+                    
+                    //float a = random_float(0, 2.0f * 3.14159f);
+                    sTextFragment f = { offset_X + x * TILESIZE_X + TILESIZE_X/2 - 8.0f, y * TILESIZE_Y + TILESIZE_Y/2.0f, 0, random_float(-10.0f, -30.0f), 2.0f +random_float(0.0f, 1.0f), std::to_string(int (std::pow(score_combo,2)*10)) };
+                    textfragments.push_back(f);
+                    
                   }
                   
                   sRemoveGemSet.clear();
@@ -1221,6 +1245,21 @@ public:
                      [&](const sFragment &f) { return f.x < 0 || f.x > ScreenWidth() || f.y < 0 || f.y > ScreenHeight(); }),
                     fragments.end());
     
+     // Draw textfragments if applicable
+    
+    for (auto &t : textfragments)
+    {
+      DrawStringDecal({t.x,t.y}, t.text);
+      t.x += t.vx * fElapsedTime;
+      t.y += t.vy * fElapsedTime;
+      t.duration -= fElapsedTime;
+    }
+    
+    // erase - remove_if idom
+    textfragments.erase(
+    std::remove_if(textfragments.begin(), textfragments.end(),
+                     [&](const sTextFragment &t) { return (t.duration < 0.0f); }),
+                    textfragments.end());
     
     // Graceful exit if user is in full screen mode
     return !GetKey(olc::Key::ESCAPE).bPressed;
