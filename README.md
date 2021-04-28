@@ -3,8 +3,8 @@ Simple clone of the common match3 genre using the [olcPixelGameEngine](https://g
 It's just for fun and educational purpose. Feel free to modify and use it :)
 If you want to use the assets, feel free to use it. Acknowledgement is highly appreciated. 
 
-![Match3-PGE_Screenshot_20210418](https://user-images.githubusercontent.com/16195016/115147815-2a7a6880-a05d-11eb-9505-4ae5e90ec12c.png)
- 
+![Screenshot_20210428_231624](https://user-images.githubusercontent.com/16195016/116474118-617c2580-a878-11eb-81db-7e4ff7144937.png)
+
 ## Installation
 Just do for standard compilation on Linux (tested with gcc 8.2.1):
 
