@@ -571,7 +571,15 @@ public:
             
             bBombToRemove = false;
             
+            if(score_combo > 1)
+            {
+              sTextFragment f = { 10.0f, 250.0f, 0, -30.0f, 4.0f, "combo +"+std::to_string(int (score_combo)) };
+                    
+              textfragments.push_back(f);
+            }
+            
             score_combo++;
+            
             
             
             for (int x = 0; x < BOARD_X; x++)
@@ -1008,7 +1016,8 @@ public:
                 else
                 {
                   
-                  score += std::pow(score_combo,2)*sRemoveGemSet.size()*10;
+                  //score += std::pow(score_combo,2)*sRemoveGemSet.size()*10;
+                  score += score_combo*sRemoveGemSet.size()*10;
                   
                   for (auto const &posGem : sRemoveGemSet) {
                     int x = posGem.first;
@@ -1027,7 +1036,9 @@ public:
                     };
                     
                     //float a = random_float(0, 2.0f * 3.14159f);
-                    sTextFragment f = { offset_X + x * TILESIZE_X + TILESIZE_X/2 - 8.0f, y * TILESIZE_Y + TILESIZE_Y/2.0f, 0, random_float(-10.0f, -30.0f), 2.0f +random_float(0.0f, 1.0f), std::to_string(int (std::pow(score_combo,2)*10)) };
+                    //sTextFragment f = { offset_X + x * TILESIZE_X + TILESIZE_X/2 - 8.0f, y * TILESIZE_Y + TILESIZE_Y/2.0f, 0, random_float(-10.0f, -30.0f), 2.0f +random_float(0.0f, 1.0f), std::to_string(int (std::pow(score_combo,2)*10)) };
+                    sTextFragment f = { offset_X + x * TILESIZE_X + TILESIZE_X/2 - 8.0f, y * TILESIZE_Y + TILESIZE_Y/2.0f, 0, random_float(-10.0f, -30.0f), 2.0f +random_float(0.0f, 1.0f), std::to_string(int (score_combo*10)) };
+                    
                     textfragments.push_back(f);
                     
                   }
