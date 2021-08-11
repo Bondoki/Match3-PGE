@@ -1,9 +1,11 @@
 # Match3-PGE 
 Simple clone of the common match3 genre using the [olc::PixelGameEngine](https://github.com/OneLoneCoder/olcPixelGameEngine) by [Javidx9](https://github.com/OneLoneCoder).
 It's just for fun and educational purpose. Feel free to modify, improve, and use it :)
-If you want to use the gem assets, [feel free to use them](https://opengameart.org/content/rotating-gems-for-match3) in any creative way as I released them into public domain. Acknowledgement is highly appreciated. 
+If you want to use the gem assets, [feel free to use them](https://opengameart.org/content/rotating-gems-for-match3) in any creative way as I released them into public domain - acknowledgement is appreciated. 
 
-![Screenshot_20210428_231624](https://user-images.githubusercontent.com/16195016/116474118-617c2580-a878-11eb-81db-7e4ff7144937.png)
+<img src="https://user-images.githubusercontent.com/16195016/116474118-617c2580-a878-11eb-81db-7e4ff7144937.png" width="512">
+<img src="https://user-images.githubusercontent.com/16195016/129031785-9a420bb5-eab3-4885-8e66-e2318e78e7b0.gif" width="512">
+
 
 ## Installation
 Just do for standard compilation on Linux (tested with gcc 8.2.1):
